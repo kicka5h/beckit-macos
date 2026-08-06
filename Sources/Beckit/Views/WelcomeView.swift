@@ -119,19 +119,19 @@ struct AppMark: View {
     var size: CGFloat
 
     static let ink = Color(red: 0.839, green: 0.278, blue: 0.608)
-    static let groundTop = Color(red: 1.000, green: 0.980, blue: 0.990)
-    static let groundBottom = Color(red: 0.988, green: 0.914, blue: 0.953)
+    static let groundTop = Color(red: 1.000, green: 1.000, blue: 1.000)
+    static let groundBottom = Color(red: 0.976, green: 0.969, blue: 0.973)
 
     /// Mirrors `strokePixels(for:)` in the icon generator: the mark is drawn at
-    /// 34/1024 of its box, floored below 192pt so a small mark thickens instead
+    /// 46/1024 of its box, floored below 192pt so a small mark thickens instead
     /// of fading into antialiased grey.
     static func strokeWidth(for size: CGFloat) -> CGFloat {
-        let natural = 34 / 1024 * size
+        let natural = 46 / 1024 * size
         let minimum: CGFloat = switch size {
-        case ..<24: 1.6
-        case ..<48: 2.2
-        case ..<96: 3.0
-        case ..<192: 4.2
+        case ..<24: 1.8
+        case ..<48: 2.6
+        case ..<96: 3.6
+        case ..<192: 5.0
         default: 0
         }
         return max(natural, minimum)
@@ -144,7 +144,7 @@ struct AppMark: View {
                     colors: [Self.groundTop, Self.groundBottom],
                     startPoint: .top, endPoint: .bottom))
 
-            BookAndPencil(includeGraphite: size >= 64, includePageStack: size >= 32)
+            BookAndPencil(includeGraphite: size >= 64)
                 .stroke(Self.ink, style: StrokeStyle(
                     lineWidth: Self.strokeWidth(for: size),
                     lineCap: .round, lineJoin: .round))
@@ -161,66 +161,51 @@ struct AppMark: View {
 /// in, so unlike the Core Graphics version there is no flip here.
 struct BookAndPencil: Shape {
     var includeGraphite = true
-    var includePageStack = true
 
     func path(in rect: CGRect) -> Path {
         let unit = min(rect.width, rect.height) / 1024
         func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * unit, y: rect.minY + (y + 61) * unit)
+            CGPoint(x: rect.minX + x * unit, y: rect.minY + (y + 15) * unit)
         }
 
-        let outerLeft: CGFloat = 196, outerRight: CGFloat = 828, centerX: CGFloat = 512
-        let topOuter: CGFloat = 250
-        let stackEdge: CGFloat = 520, stackSag: CGFloat = 56
-        let base: CGFloat = 596, baseSag: CGFloat = 62
-        let pencilLeft: CGFloat = 469, pencilRight: CGFloat = 555
-        let pencilTop: CGFloat = 320, shoulder: CGFloat = 470, tip: CGFloat = 540
-        let graphite: CGFloat = 505
+        let outerLeft: CGFloat = 210, outerRight: CGFloat = 814, centerX: CGFloat = 512
+        let coverTop: CGFloat = 283, coverBottom: CGFloat = 645
+        let baseControl: CGFloat = 765, baseInset: CGFloat = 74
+        let pencilLeft: CGFloat = 467, pencilRight: CGFloat = 557
+        let pencilTop: CGFloat = 343, shoulder: CGFloat = 566, tip: CGFloat = 665
+        let graphite: CGFloat = 600
 
-        // The pencil is nested in the gutter and must stay above the base.
-        // Nothing may protrude below the book — see the icon generator, which
-        // fails the build on this.
-        assert(tip < base + baseSag)
+        // Nothing may protrude below the book. The icon generator fails the
+        // build on this; the same rule is asserted here so the two cannot drift
+        // into disagreeing about it.
+        assert(tip < (coverBottom + 3 * baseControl) / 4)
 
         var path = Path()
 
-        /// A horizontal running the full width, fore edge to fore edge, dipping
-        /// at the gutter. Unbroken on purpose: stopping these at the centre
-        /// leaves a notch under the spine.
-        func spanning(_ y: CGFloat, sag: CGFloat) {
-            path.move(to: at(outerLeft, y))
-            path.addCurve(
-                to: at(outerRight, y),
-                control1: at(outerLeft + 168, y + sag),
-                control2: at(outerRight - 168, y + sag))
-        }
+        // Covers and base as one line: down the left, across the bottom, up the
+        // right. The base runs unbroken under the gutter, and its controls are
+        // inset from the corners so the sides do not bow outward.
+        path.move(to: at(outerLeft, coverTop))
+        path.addLine(to: at(outerLeft, coverBottom))
+        path.addCurve(
+            to: at(outerRight, coverBottom),
+            control1: at(outerLeft + baseInset, baseControl),
+            control2: at(outerRight - baseInset, baseControl))
+        path.addLine(to: at(outerRight, coverTop))
 
+        // Each page's top edge continues into that side of the pencil and down
+        // to the point — page and pencil are a single unbroken contour.
         for mirrored in [false, true] {
             func x(_ value: CGFloat) -> CGFloat {
                 mirrored ? 2 * centerX - value : value
             }
-
-            // Page surface, flowing into that side of the pencil and down to
-            // the point — one unbroken contour.
-            path.move(to: at(x(outerLeft), topOuter))
+            path.move(to: at(x(outerLeft), coverTop))
             path.addCurve(
                 to: at(x(pencilLeft), pencilTop),
-                control1: at(x(outerLeft + 96), topOuter - 6),
-                control2: at(x(pencilLeft - 104), pencilTop - 4))
+                control1: at(x(272), 251),
+                control2: at(x(382), 305))
             path.addLine(to: at(x(pencilLeft), shoulder))
             path.addLine(to: at(centerX, tip))
-
-            // Fore edge, down from the page surface to the base.
-            path.move(to: at(x(outerLeft), topOuter))
-            path.addLine(to: at(x(outerLeft), base))
-        }
-
-        spanning(base, sag: baseSag)
-
-        // The page stack band. Dropped at small sizes, where it merges with the
-        // base into one grey bar.
-        if includePageStack {
-            spanning(stackEdge, sag: stackSag)
         }
 
         // The line across the sharpened end. Left off at small sizes, where the

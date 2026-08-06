@@ -63,42 +63,37 @@ writing; the writing itself is plain text on the window's own material.
 
 ### The mark
 
-An open book whose spine is a pencil — the two things the app is for, sharing
-one line. Each page's top edge flows into that side of the pencil and down to
-the point, so page and pencil are a single unbroken contour rather than two
-shapes stacked together.
+An open book whose spine is a pencil, following the reference Ash provided:
+two covers joined by one continuous base, page edges sweeping in from the
+covers, and a pencil nested in the gutter. Each page edge continues into that
+side of the pencil and down to the point, so page and pencil are a single
+unbroken contour rather than two shapes placed together.
 
-Two page surfaces meet at the gutter, over a page stack band sitting on a base.
-Both horizontals run unbroken from one fore edge to the other, and the pencil is
-wholly contained above them.
-
+The base runs unbroken beneath the gutter and the pencil stays wholly above it.
 That containment is enforced, not just intended: `make-icon.swift` fails the
-build if the pencil's tip falls below the base. An earlier revision let the two
-halves stop at the gutter and put the pencil's point below the join, and the
-resulting silhouette — two forms splaying away from a shaft with a tip — was
-crude in a way none of the individual parts were. A mark is read whole before it
-is read in parts, and a one-number change can reintroduce that, so the geometry
-asserts it.
+build if the tip falls below the base, and `AppMark` carries the matching
+assertion. An earlier revision let the two halves stop at the gutter and put the
+point below the join; the resulting silhouette was crude in a way none of the
+individual parts were. A mark is read whole before it is read in parts, and a
+one-constant change can bring that back.
 
 It is drawn in code (`Scripts/make-icon.swift`), not stored as artwork, so every
-size in the iconset comes from one set of numbers. The `AppMark` view used
-inside the app mirrors the same geometry in SwiftUI; the generator is a
-standalone script and cannot import app code, so those two are kept in step by
-hand — change one and you must change the other.
+size in the iconset comes from one set of numbers. The `AppMark` view mirrors the
+same geometry in SwiftUI; the generator is a standalone script and cannot import
+app code, so those two are kept in step by hand.
 
 Two things it does that a static asset cannot:
 
-- **Optical sizing.** The mark is drawn at 34/1024 of the canvas, which is right
-  from 256pt up and works out to *half a pixel* at 16pt — antialiasing spreads
-  that into pale grey and the icon reads as a smudge. Below 256 the weight is
-  floored at what a line needs to hold its colour, so the mark thickens as it
-  shrinks instead of fading out. The floor is stated in pixels, not as a ratio,
-  because expressing it as a ratio is what hid the problem in the first place.
-- **Size-dependent detail.** The page stack line is dropped below 32pt and the
-  line across the pencil's sharpened end below 64pt. At those sizes they are
-  extra horizontals in a space a few pixels tall, and all of them merge into one
-  grey bar — the mark reads better as a plain open book than as a smudge
-  carrying more information than the pixels can hold.
+- **Optical sizing.** The mark is drawn at 46/1024 of the canvas, which is right
+  from 256pt up and works out to well under a pixel at 16pt — antialiasing
+  spreads that into pale grey and the icon reads as a smudge. Below 256 the
+  weight is floored at what a line needs to hold its colour, so the mark thickens
+  as it shrinks instead of fading out. The floor is stated in pixels, not as a
+  ratio, because expressing it as a ratio is what hid the problem in the first
+  place.
+- **Size-dependent detail.** The line across the pencil's sharpened end is
+  dropped below 64pt, where the taper is a few pixels wide and the detail lands
+  as a blot.
 
 It is drawn full-bleed, because macOS 26 masks app icons to the system shape
 itself — artwork that ships its own rounded rectangle ends up inset twice and
