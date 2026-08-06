@@ -22,6 +22,11 @@
     <string>26.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <!-- Fonts in Contents/Resources/Fonts are registered for this app at
+         launch, so the display face works on a Mac that has never installed
+         it and nothing has to be registered in code. -->
+    <key>ATSApplicationFontsPath</key>
+    <string>Fonts</string>
     <key>NSHumanReadableCopyright</key>
     <string>MIT licensed. Beckit contributors.</string>
     <!-- GitHub OAuth app client ID. Not a secret: the device flow uses no

@@ -22,7 +22,7 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Beckit")
-                    .font(.system(size: 40, weight: .semibold, design: .serif))
+                    .font(Typography.display(size: 68))
 
                 Text("Write a book. Keep every version. Sync it to GitHub.")
                     .font(.title3)
