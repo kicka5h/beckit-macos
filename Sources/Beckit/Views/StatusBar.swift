@@ -3,11 +3,17 @@ import SwiftUI
 
 /// Word counts, unsaved state, and whatever sync is doing — the quiet strip a
 /// writer glances at without looking away from the prose.
+///
+/// A floating glass pill rather than a full-width bar. Liquid Glass treats
+/// controls as a layer *above* the content, so the prose runs the full width of
+/// the pane and the pill sits over it, picking up the colour of whatever it
+/// happens to be over. Placed with `safeAreaInset`, so it reserves its own room
+/// and never covers the last line.
 struct StatusBar: View {
     @Bindable var workspace: Workspace
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             if workspace.isDirty {
                 Label("Unsaved", systemImage: "circle.fill")
                     .labelStyle(DotLabelStyle())
@@ -19,8 +25,6 @@ struct StatusBar: View {
                     .monospacedDigit()
                     .foregroundStyle(.tertiary)
             }
-
-            Spacer()
 
             if let message = workspace.syncState.message {
                 syncIndicator(message)
@@ -36,8 +40,10 @@ struct StatusBar: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 14)
-        .padding(.vertical, 7)
-        .background(.bar)
+        .padding(.vertical, 8)
+        .glassEffect(.regular, in: .capsule)
+        .animation(.smooth(duration: 0.25), value: workspace.isDirty)
+        .animation(.smooth(duration: 0.25), value: workspace.syncState)
     }
 
     @ViewBuilder

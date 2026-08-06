@@ -25,6 +25,15 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH/Beckit" "$APP/Contents/MacOS/Beckit"
 cp "$ROOT/App/Info.plist" "$APP/Contents/Info.plist"
 
+# Regenerate the icon if the generator has changed since the last build, so the
+# committed .icns can never drift from the code that draws it.
+if [ ! -f "$ROOT/App/Assets/Beckit.icns" ] \
+   || [ "$ROOT/Scripts/make-icon.swift" -nt "$ROOT/App/Assets/Beckit.icns" ]; then
+    echo "Rendering app icon…"
+    swift "$ROOT/Scripts/make-icon.swift" "$ROOT/App/Assets"
+fi
+cp "$ROOT/App/Assets/Beckit.icns" "$APP/Contents/Resources/Beckit.icns"
+
 # A client ID supplied by the environment wins over the empty default, so CI can
 # inject it without the value ever living in the repository.
 if [ -n "${BECKIT_OAUTH_CLIENT_ID:-}" ]; then

@@ -23,15 +23,20 @@ struct SectionSidebar: View {
             }
         }
         .listStyle(.sidebar)
+        // A glass button floating over the list rather than a bar welded to the
+        // bottom of it, so the sidebar's own material stays unbroken and the
+        // chapters scroll underneath.
         .safeAreaInset(edge: .bottom) {
             Button {
                 if let section = workspace.addChapter() { workspace.select(section.id) }
             } label: {
                 Label("New Chapter", systemImage: "plus")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.accessoryBar)
-            .padding(8)
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 10)
         }
     }
 

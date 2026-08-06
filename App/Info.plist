@@ -8,6 +8,8 @@
     <string>Beckit</string>
     <key>CFBundleExecutable</key>
     <string>Beckit</string>
+    <key>CFBundleIconFile</key>
+    <string>Beckit</string>
     <key>CFBundleIdentifier</key>
     <string>com.beckit.Beckit</string>
     <key>CFBundlePackageType</key>

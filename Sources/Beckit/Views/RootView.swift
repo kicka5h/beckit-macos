@@ -38,7 +38,7 @@ struct BookWindow: View {
                 .navigationSplitViewColumnWidth(
                     min: 200, ideal: sidebarWidth, max: 380)
         } detail: {
-            VStack(spacing: 0) {
+            Group {
                 if workspace.currentSection != nil {
                     MarkdownEditor(text: $workspace.text) { workspace.textChanged($0) }
                 } else {
@@ -47,8 +47,16 @@ struct BookWindow: View {
                         systemImage: "text.book.closed",
                         description: Text("Pick a chapter on the left, or add a new one."))
                 }
-                Divider()
-                StatusBar(workspace: workspace)
+            }
+            // The pill floats over the prose at the trailing edge, and the
+            // inset keeps the text from running underneath it.
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Spacer()
+                    StatusBar(workspace: workspace)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
             }
             .inspector(isPresented: $showsHistory) {
                 HistoryPane(workspace: workspace)
@@ -63,9 +71,13 @@ struct BookWindow: View {
         }
     }
 
+    // Toolbar items sit in glass capsules that group adjacent items together.
+    // `ToolbarSpacer(.fixed)` breaks the run, so actions that *do* something to
+    // the book read as one control and the view toggles as another, instead of
+    // all four running together in a single undifferentiated capsule.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .principal) {
+        ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 workspace.saveNow()
             } label: {
@@ -79,8 +91,13 @@ struct BookWindow: View {
             } label: {
                 Label("Sync", systemImage: "arrow.trianglehead.2.clockwise")
             }
-            .help("Pull the latest changes from GitHub")
+            .disabled(!workspace.hasRemote)
+            .help(workspace.hasRemote
+                ? "Pull the latest changes from GitHub"
+                : "This book is not connected to GitHub")
         }
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
 
         ToolbarItemGroup(placement: .primaryAction) {
             Toggle(isOn: $showsPlanning) {

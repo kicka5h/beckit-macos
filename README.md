@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="App/Assets/Beckit-1024.png" width="128" alt="Beckit">
+
 # Beckit for macOS
 
 A native macOS app for writing books — with GitHub sync, chapter versioning, and PDF export.
@@ -34,6 +36,44 @@ Three other things fell out of the rewrite:
 | PDF export | Bundled pandoc + TeX Live (hundreds of MB, fragile in CI) | TextKit and Core Graphics, already in macOS |
 | GitHub token | Cleartext in `~/Library/Application Support/beckit/config.json` | macOS keychain |
 | Version storage | A duplicate folder per version, in the working tree forever | Git commits and tags |
+
+## Design
+
+Built for [Liquid Glass](https://www.apple.com/newsroom/2025/06/apple-introduces-a-delightful-and-elegant-new-software-design/),
+the design system introduced with macOS Tahoe. Because the app is compiled
+against the macOS 26 SDK, standard controls, the sidebar, the inspector and the
+toolbar adopt the material automatically — so most of the work was *removing*
+things that fought it, and adopting the explicit APIs where a floating layer is
+genuinely the right answer:
+
+- **No opaque panel fills.** Hardcoded backgrounds stop the material sampling
+  what is behind it, which is the entire premise. The welcome pane is
+  `glassEffect` over a `backgroundExtensionEffect` wash instead of a grey fill.
+- **Chrome floats above content.** Word count and sync status are a glass
+  capsule over the prose rather than a bar welded under it, so the text column
+  runs the full height of the pane.
+- **Concentric corners.** Nested containers use `ConcentricRectangle`, so their
+  radii stay concentric with the window's rather than being guessed at.
+- **Grouped toolbar items.** `ToolbarSpacer(.fixed)` separates actions that
+  change the book from toggles that change the view, so they read as two
+  controls rather than one undifferentiated capsule.
+
+Glass is used sparingly and never stacked on glass. It marks the layer above the
+writing; the writing itself is plain text on the window's own material.
+
+### The mark
+
+A bookmark, with the versions it has been through receding behind it — the two
+things the app is for, in one shape. Cream on ink.
+
+It is drawn in code (`Scripts/make-icon.swift`), not stored as artwork, so every
+size in the iconset comes from the same geometry and the icon can never drift
+from the `AppMark` view used inside the app. The composition is fitted and
+optically centred at render time rather than positioned by hand, and it is drawn
+full-bleed because macOS 26 masks app icons to the system shape itself — artwork
+that ships its own rounded rectangle ends up inset twice.
+
+At 16pt it reads as a bookmark; the stack emerges from 32pt up.
 
 ## Storage format
 
