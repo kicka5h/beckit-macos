@@ -63,41 +63,45 @@ writing; the writing itself is plain text on the window's own material.
 
 ### The mark
 
-An open book whose spine is a pencil, following the reference Ash provided:
-two covers joined by one continuous base, page edges sweeping in from the
-covers, and a pencil nested in the gutter. Each page edge continues into that
-side of the pencil and down to the point, so page and pencil are a single
-unbroken contour rather than two shapes placed together.
+An open book whose spine is a pencil, **traced from the reference artwork
+itself** rather than redrawn by eye. `Scripts/trace-reference.swift` reads the
+source PNG and extracts contours from the pixels:
 
-The base runs unbroken beneath the gutter and the pencil stays wholly above it.
-That containment is enforced, not just intended: `make-icon.swift` fails the
-build if the tip falls below the base, and `AppMark` carries the matching
-assertion. An earlier revision let the two halves stop at the gutter and put the
-point below the join; the resulting silhouette was crude in a way none of the
-individual parts were. A mark is read whole before it is read in parts, and a
-one-constant change can bring that back.
+1. Build a coverage field — how much ink each pixel holds. The source is
+   antialiased, so the field is smooth and its half-way contour lands *between*
+   pixels rather than on them.
+2. Marching squares at half coverage, interpolating along every cell edge, so
+   the trace is sub-pixel accurate instead of stair-stepped.
+3. Stitch the segments into closed loops.
+4. Simplify with Douglas–Peucker, dropping the points that carry no shape
+   without moving the curve.
+5. Normalise into a 1024-unit design space, centred.
 
-It is drawn in code (`Scripts/make-icon.swift`), not stored as artwork, so every
-size in the iconset comes from one set of numbers. The `AppMark` view mirrors the
-same geometry in SwiftUI; the generator is a standalone script and cannot import
-app code, so those two are kept in step by hand.
+The result is written to `Sources/Beckit/Views/MarkGeometry.swift` and compiled
+into **both** the app and the icon generator, so the mark in the window and the
+icon in the Dock are the same contours. Nothing is kept in step by hand.
 
-Two things it does that a static asset cannot:
+Contours are filled with the even-odd rule, which makes the holes in the
+artwork holes without any special handling.
 
-- **Optical sizing.** The mark is drawn at 46/1024 of the canvas, which is right
-  from 256pt up and works out to well under a pixel at 16pt — antialiasing
-  spreads that into pale grey and the icon reads as a smudge. Below 256 the
-  weight is floored at what a line needs to hold its colour, so the mark thickens
-  as it shrinks instead of fading out. The floor is stated in pixels, not as a
-  ratio, because expressing it as a ratio is what hid the problem in the first
-  place.
-- **Size-dependent detail.** The line across the pencil's sharpened end is
-  dropped below 64pt, where the taper is a few pixels wide and the detail lands
-  as a blot.
+Two things this does that a static asset cannot:
+
+- **Emboldening at small sizes.** Line art is the hard case for an app icon: a
+  stroke that looks elegant at 512pt falls under a pixel at 16pt and antialiases
+  into pale grey. Stroking the filled outline grows every edge outward by half
+  the line width, thickening the mark uniformly without touching the geometry.
+  The amount is stated in pixels, because the problem is a pixel problem —
+  expressing it as a fraction of the canvas is exactly what hides it.
+- **One source of truth.** Retracing a new reference regenerates the geometry
+  for the icon and the app together.
 
 It is drawn full-bleed, because macOS 26 masks app icons to the system shape
 itself — artwork that ships its own rounded rectangle ends up inset twice and
 sits visibly small in the Dock.
+
+> The reference artwork is a third-party icon. Check its licence before shipping
+> the app publicly, or commission a mark of your own; the tracer will regenerate
+> everything from whatever PNG you point it at.
 
 ## Storage format
 

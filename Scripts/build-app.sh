@@ -25,12 +25,21 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH/Beckit" "$APP/Contents/MacOS/Beckit"
 cp "$ROOT/App/Info.plist" "$APP/Contents/Info.plist"
 
-# Regenerate the icon if the generator has changed since the last build, so the
-# committed .icns can never drift from the code that draws it.
+# Regenerate the icon when either the renderer or the traced geometry has
+# changed, so the committed .icns cannot drift from what produces it.
+#
+# The generator is compiled rather than run as a script because it shares
+# MarkGeometry.swift with the app — that sharing is what keeps the Dock icon and
+# the in-app mark identical, and a single-file script cannot have it.
+GEOMETRY="$ROOT/Sources/Beckit/Views/MarkGeometry.swift"
 if [ ! -f "$ROOT/App/Assets/Beckit.icns" ] \
-   || [ "$ROOT/Scripts/make-icon.swift" -nt "$ROOT/App/Assets/Beckit.icns" ]; then
+   || [ "$ROOT/Scripts/make-icon.swift" -nt "$ROOT/App/Assets/Beckit.icns" ] \
+   || [ "$GEOMETRY" -nt "$ROOT/App/Assets/Beckit.icns" ]; then
     echo "Rendering app icon…"
-    swift "$ROOT/Scripts/make-icon.swift" "$ROOT/App/Assets"
+    TOOL="$(mktemp -d)/make-icon"
+    swiftc -parse-as-library -O -o "$TOOL" \
+        "$ROOT/Scripts/make-icon.swift" "$GEOMETRY"
+    "$TOOL" "$ROOT/App/Assets"
 fi
 cp "$ROOT/App/Assets/Beckit.icns" "$APP/Contents/Resources/Beckit.icns"
 
