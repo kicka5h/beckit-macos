@@ -68,6 +68,11 @@ one line. Each page's top edge flows into that side of the pencil and down to
 the point, so page and pencil are a single unbroken contour rather than two
 shapes stacked together.
 
+The book is built as two mirrored halves, each a page block with its own top
+surface, fore edge, page stack and bottom. Drawing it as a single silhouette
+running under the spine is the obvious shortcut and the wrong one: with nothing
+separating left from right it reads as a container, not as a book that opens.
+
 It is drawn in code (`Scripts/make-icon.swift`), not stored as artwork, so every
 size in the iconset comes from one set of numbers. The `AppMark` view used
 inside the app mirrors the same geometry in SwiftUI; the generator is a
@@ -76,12 +81,17 @@ hand — change one and you must change the other.
 
 Two things it does that a static asset cannot:
 
-- **Optical sizing.** A stroke weight that looks elegant at 512pt is under a
-  pixel wide at 16pt and renders as a grey smudge. The weight ramps up as the
-  canvas shrinks, so the 16pt icon stays legible.
-- **Size-dependent detail.** The line across the pencil's sharpened end is
-  dropped below 64pt, where the taper is only a few pixels wide and the detail
-  would land as a blot.
+- **Optical sizing.** The mark is drawn at 34/1024 of the canvas, which is right
+  from 256pt up and works out to *half a pixel* at 16pt — antialiasing spreads
+  that into pale grey and the icon reads as a smudge. Below 256 the weight is
+  floored at what a line needs to hold its colour, so the mark thickens as it
+  shrinks instead of fading out. The floor is stated in pixels, not as a ratio,
+  because expressing it as a ratio is what hid the problem in the first place.
+- **Size-dependent detail.** The page stack line is dropped below 32pt and the
+  line across the pencil's sharpened end below 64pt. At those sizes they are
+  extra horizontals in a space a few pixels tall, and all of them merge into one
+  grey bar — the mark reads better as a plain open book than as a smudge
+  carrying more information than the pixels can hold.
 
 It is drawn full-bleed, because macOS 26 masks app icons to the system shape
 itself — artwork that ships its own rounded rectangle ends up inset twice and
