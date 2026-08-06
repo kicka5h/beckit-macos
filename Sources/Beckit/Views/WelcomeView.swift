@@ -166,52 +166,61 @@ struct BookAndPencil: Shape {
     func path(in rect: CGRect) -> Path {
         let unit = min(rect.width, rect.height) / 1024
         func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * unit, y: rect.minY + (y + 25) * unit)
+            CGPoint(x: rect.minX + x * unit, y: rect.minY + (y + 61) * unit)
         }
 
-        let outerLeft: CGFloat = 205, centerX: CGFloat = 512
-        let topOuter: CGFloat = 300, bottomOuter: CGFloat = 570
-        let pageLineOuter: CGFloat = 498, pageLineInner: CGFloat = 512
-        let pencilLeft: CGFloat = 452, pencilRight: CGFloat = 572
-        let pencilTop: CGFloat = 366, shoulder: CGFloat = 578, tip: CGFloat = 700
-        let graphite: CGFloat = 612
+        let outerLeft: CGFloat = 196, outerRight: CGFloat = 828, centerX: CGFloat = 512
+        let topOuter: CGFloat = 250
+        let stackEdge: CGFloat = 520, stackSag: CGFloat = 56
+        let base: CGFloat = 596, baseSag: CGFloat = 62
+        let pencilLeft: CGFloat = 469, pencilRight: CGFloat = 555
+        let pencilTop: CGFloat = 320, shoulder: CGFloat = 470, tip: CGFloat = 540
+        let graphite: CGFloat = 505
+
+        // The pencil is nested in the gutter and must stay above the base.
+        // Nothing may protrude below the book — see the icon generator, which
+        // fails the build on this.
+        assert(tip < base + baseSag)
 
         var path = Path()
 
-        // Two mirrored halves, each its own page block. A single silhouette
-        // running under the spine would read as a container rather than as a
-        // book with two sides.
+        /// A horizontal running the full width, fore edge to fore edge, dipping
+        /// at the gutter. Unbroken on purpose: stopping these at the centre
+        /// leaves a notch under the spine.
+        func spanning(_ y: CGFloat, sag: CGFloat) {
+            path.move(to: at(outerLeft, y))
+            path.addCurve(
+                to: at(outerRight, y),
+                control1: at(outerLeft + 168, y + sag),
+                control2: at(outerRight - 168, y + sag))
+        }
+
         for mirrored in [false, true] {
             func x(_ value: CGFloat) -> CGFloat {
                 mirrored ? 2 * centerX - value : value
             }
-            /// A curve from the fore edge in to the spine, bellying by `sag`.
-            /// Shared by every horizontal so they stay parallel.
-            func leaf(from outer: CGFloat, to inner: CGFloat, sag: CGFloat) {
-                path.move(to: at(x(outerLeft), outer))
-                path.addCurve(
-                    to: at(x(pencilLeft), inner),
-                    control1: at(x(outerLeft + 96), outer + sag),
-                    control2: at(x(pencilLeft - 104), inner + sag * 0.7))
-            }
 
             // Page surface, flowing into that side of the pencil and down to
             // the point — one unbroken contour.
-            leaf(from: topOuter, to: pencilTop, sag: -6)
+            path.move(to: at(x(outerLeft), topOuter))
+            path.addCurve(
+                to: at(x(pencilLeft), pencilTop),
+                control1: at(x(outerLeft + 96), topOuter - 6),
+                control2: at(x(pencilLeft - 104), pencilTop - 4))
             path.addLine(to: at(x(pencilLeft), shoulder))
             path.addLine(to: at(centerX, tip))
 
-            // Fore edge, then the block's bottom, closing onto the pencil at
-            // the shoulder so the point protrudes below the book.
+            // Fore edge, down from the page surface to the base.
             path.move(to: at(x(outerLeft), topOuter))
-            path.addLine(to: at(x(outerLeft), bottomOuter))
-            leaf(from: bottomOuter, to: shoulder, sag: 20)
+            path.addLine(to: at(x(outerLeft), base))
+        }
 
-            // The page stack: one sheet lifted off the block. Dropped at small
-            // sizes, where it merges with the other two horizontals.
-            if includePageStack {
-                leaf(from: pageLineOuter, to: pageLineInner, sag: 20)
-            }
+        spanning(base, sag: baseSag)
+
+        // The page stack band. Dropped at small sizes, where it merges with the
+        // base into one grey bar.
+        if includePageStack {
+            spanning(stackEdge, sag: stackSag)
         }
 
         // The line across the sharpened end. Left off at small sizes, where the

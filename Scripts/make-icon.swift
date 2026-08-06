@@ -40,43 +40,39 @@ private enum Design {
     /// The mark's ink sits slightly above the middle of its own bounds — the
     /// heavy base is lower than the light page tops — so it needs nudging down
     /// to look centred in the tile.
-    static let opticalOffsetY: CGFloat = 25
+    static let opticalOffsetY: CGFloat = 61
 
-    // The book is built as two mirrored halves rather than one outline. A
-    // single silhouette running under the spine reads as a container — a bowl
-    // with a slot — because nothing separates the left side from the right.
-    // Each half here has its own top edge, fore edge, page line and cover, so
-    // the two sides of the opening are distinct shapes.
-    static let outerLeft: CGFloat = 205
-    static let outerRight: CGFloat = 819
+    static let outerLeft: CGFloat = 196
+    static let outerRight: CGFloat = 828
 
-    // Each half is a page block: a top surface, a fore edge, and a bottom that
-    // runs back in to the spine. Top and bottom both slope *down* toward the
-    // gutter, which is what an open book does and what makes the block read as
-    // a leaf with thickness rather than as one side of a container.
-    static let topOuter: CGFloat = 300
-    static let bottomOuter: CGFloat = 570
+    // Fore edges, and the two horizontals that close the book: a page stack
+    // band sitting on a base. Both run unbroken from one fore edge to the
+    // other.
+    //
+    // Nothing may extend below `base`. An earlier version let each half stop at
+    // the gutter and put the pencil's point below the join — two forms splaying
+    // away from a shaft with a tip. Read as a whole rather than as parts, that
+    // silhouette was crude, and no amount of intent at the part level fixes a
+    // silhouette. The base now closes across the bottom and the pencil is
+    // wholly contained above it.
+    static let topOuter: CGFloat = 250
+    static let stackEdge: CGFloat = 520     // page band, at the fore edges
+    static let stackSag: CGFloat = 56       // how far it dips at the gutter
+    static let base: CGFloat = 596          // cover, at the fore edges
+    static let baseSag: CGFloat = 62
 
-    // The page stack: a line parallel to the bottom edge and above it, so the
-    // fore edge shows a band of paper under the top sheet. The band has to
-    // clear the stroke on both sides or the two lines merge into one rule.
-    static let pageLineOuter: CGFloat = 498
-    static let pageLineInner: CGFloat = 512
+    // Pencil, nested in the gutter. The tip stops well above where the base
+    // dips, so the point never breaks the book's outline.
+    static let pencilLeft: CGFloat = 469
+    static let pencilRight: CGFloat = 555
+    static let pencilTop: CGFloat = 320
+    static let shoulder: CGFloat = 470      // where the barrel starts tapering
+    static let tip: CGFloat = 540
+    static let graphite: CGFloat = 505      // the line across the sharpened end
 
-    // Page top edge: lifts a little off the fore edge before falling to the
-    // spine, which is what gives the pages their fan.
-    static let pageControl1 = CGPoint(x: 272, y: 268)
-    static let pageControl2 = CGPoint(x: 382, y: 322)
-
-    // Pencil. Wide enough that the barrel holds an open channel between its two
-    // sides — squeeze it any narrower and the stroke closes the gap, leaving a
-    // sliver that reads as the seam between the pages rather than as a pencil.
-    static let pencilLeft: CGFloat = 452
-    static let pencilRight: CGFloat = 572
-    static let pencilTop: CGFloat = 366
-    static let shoulder: CGFloat = 578      // where the barrel starts tapering
-    static let tip: CGFloat = 700
-    static let graphite: CGFloat = 612      // the line across the sharpened end
+    /// The lowest point of the base, at the gutter. The pencil is checked
+    /// against this so the two can never cross again.
+    static var baseAtGutter: CGFloat { base + baseSag }
 
     /// Where the pencil's tapered edge sits at a given height, used to place the
     /// graphite line across the sharpened end.
@@ -111,6 +107,15 @@ func strokePixels(for pixelSize: CGFloat) -> CGFloat {
 // MARK: - Drawing
 
 func drawIcon(in context: CGContext, size: CGFloat) {
+    // The pencil must stay inside the book. This is not a stylistic preference:
+    // a shaft with a point emerging below two shapes that splay away from it
+    // makes a silhouette nobody wants on their Dock, and it is easy to
+    // reintroduce by nudging one number. Fail the build instead.
+    precondition(
+        Design.tip < Design.baseAtGutter,
+        "the pencil tip (\(Design.tip)) must sit above the base at the gutter "
+            + "(\(Design.baseAtGutter)) — nothing may protrude below the book")
+
     let unit = size / Design.canvas
 
     /// Design space (top-left origin) to Core Graphics space (bottom-left).
@@ -131,63 +136,61 @@ func drawIcon(in context: CGContext, size: CGFloat) {
             options: [])
     }
 
-    /// One half of the book, mirrored for the other side.
+    /// A horizontal running the full width of the book, from one fore edge to
+    /// the other, dipping by `sag` at the gutter.
     ///
-    /// Two strokes. The first is the page surface running from the fore edge
-    /// into that side of the pencil and down to the point — page and pencil
-    /// share one unbroken contour, which is the idea of the mark. The second is
-    /// the fore edge and cover, which give the half a body instead of leaving
-    /// it an open curve.
-    func half(mirrored: Bool) -> [CGPath] {
+    /// Unbroken on purpose. Stopping these at the gutter is what left a notch
+    /// under the spine for the pencil to poke through.
+    func spanning(_ y: CGFloat, sag: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        path.move(to: point(Design.outerLeft, y))
+        path.addCurve(
+            to: point(Design.outerRight, y),
+            control1: point(Design.outerLeft + 168, y + sag),
+            control2: point(Design.outerRight - 168, y + sag))
+        return path
+    }
+
+    /// One page surface, running from its fore edge into that side of the
+    /// pencil and down to the point. Page and pencil share one unbroken
+    /// contour, which is the idea of the mark.
+    func surface(mirrored: Bool) -> CGPath {
         func x(_ value: CGFloat) -> CGFloat {
             mirrored ? 2 * Design.centerX - value : value
         }
+        let path = CGMutablePath()
+        path.move(to: point(x(Design.outerLeft), Design.topOuter))
+        path.addCurve(
+            to: point(x(Design.pencilLeft), Design.pencilTop),
+            control1: point(x(Design.outerLeft + 96), Design.topOuter - 6),
+            control2: point(x(Design.pencilLeft - 104), Design.pencilTop - 4))
+        path.addLine(to: point(x(Design.pencilLeft), Design.shoulder))
+        path.addLine(to: point(Design.centerX, Design.tip))
+        return path
+    }
 
-        /// A curve running from the fore edge in to the spine, bellying by
-        /// `sag` on the way.
-        ///
-        /// Every horizontal in the mark uses this, which is what keeps the page
-        /// surface, the stack line and the block's bottom parallel. Deep sags
-        /// were the earlier mistake: they swing the ends outward and the two
-        /// halves stop reading as page blocks and start reading as wings.
-        func leaf(from outer: CGFloat, to inner: CGFloat, sag: CGFloat) -> CGMutablePath {
-            let path = CGMutablePath()
-            path.move(to: point(x(Design.outerLeft), outer))
-            path.addCurve(
-                to: point(x(Design.pencilLeft), inner),
-                control1: point(x(Design.outerLeft + 96), outer + sag),
-                control2: point(x(Design.pencilLeft - 104), inner + sag * 0.7))
-            return path
-        }
+    /// Fore edge: the outer side of the book, from the page surface down to the
+    /// base.
+    func foreEdge(mirrored: Bool) -> CGPath {
+        let edge = mirrored ? Design.outerRight : Design.outerLeft
+        let path = CGMutablePath()
+        path.move(to: point(edge, Design.topOuter))
+        path.addLine(to: point(edge, Design.base))
+        return path
+    }
 
-        // Page surface, flowing into that side of the pencil and down to the
-        // point. Page and pencil share one unbroken contour — that is the idea
-        // of the mark.
-        let surface = leaf(from: Design.topOuter, to: Design.pencilTop, sag: -6)
-        surface.addLine(to: point(x(Design.pencilLeft), Design.shoulder))
-        surface.addLine(to: point(Design.centerX, Design.tip))
+    var paths = [
+        surface(mirrored: false), surface(mirrored: true),
+        foreEdge(mirrored: false), foreEdge(mirrored: true),
+        spanning(Design.base, sag: Design.baseSag),
+    ]
 
-        // Fore edge, then the block's bottom. It ends where the barrel starts
-        // to taper, so the block closes onto the pencil and leaves the point
-        // protruding below the book rather than buried in the junction.
-        let board = CGMutablePath()
-        board.move(to: point(x(Design.outerLeft), Design.topOuter))
-        board.addLine(to: point(x(Design.outerLeft), Design.bottomOuter))
-        board.addPath(leaf(
-            from: Design.bottomOuter, to: Design.shoulder, sag: 20))
-
-        // The page stack: one sheet lifted off the block, so the fore edge
-        // shows paper under the top sheet rather than a bare outline.
-        //
-        // Dropped below 32pt. There it is the third horizontal in a space a few
-        // pixels tall, and all three merge into one grey bar — the mark reads
-        // better as a plain open book than as a smudge with more information in
-        // it than the pixels can carry.
-        guard size >= 32 else { return [surface, board] }
-        let pages = leaf(
-            from: Design.pageLineOuter, to: Design.pageLineInner, sag: 20)
-
-        return [surface, board, pages]
+    // The page stack band. Dropped below 32pt, where it is a third horizontal
+    // in a space a few pixels tall and all of them merge into one grey bar —
+    // the mark reads better as a plain open book than as a smudge carrying more
+    // information than the pixels can hold.
+    if size >= 32 {
+        paths.append(spanning(Design.stackEdge, sag: Design.stackSag))
     }
 
     context.setStrokeColor(ink)
@@ -195,7 +198,7 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     context.setLineJoin(.round)
     context.setLineWidth(strokePixels(for: size))
 
-    for path in half(mirrored: false) + half(mirrored: true) {
+    for path in paths {
         context.addPath(path)
     }
     context.strokePath()

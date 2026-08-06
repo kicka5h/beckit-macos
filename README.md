@@ -68,10 +68,17 @@ one line. Each page's top edge flows into that side of the pencil and down to
 the point, so page and pencil are a single unbroken contour rather than two
 shapes stacked together.
 
-The book is built as two mirrored halves, each a page block with its own top
-surface, fore edge, page stack and bottom. Drawing it as a single silhouette
-running under the spine is the obvious shortcut and the wrong one: with nothing
-separating left from right it reads as a container, not as a book that opens.
+Two page surfaces meet at the gutter, over a page stack band sitting on a base.
+Both horizontals run unbroken from one fore edge to the other, and the pencil is
+wholly contained above them.
+
+That containment is enforced, not just intended: `make-icon.swift` fails the
+build if the pencil's tip falls below the base. An earlier revision let the two
+halves stop at the gutter and put the pencil's point below the join, and the
+resulting silhouette — two forms splaying away from a shaft with a tip — was
+crude in a way none of the individual parts were. A mark is read whole before it
+is read in parts, and a one-number change can reintroduce that, so the geometry
+asserts it.
 
 It is drawn in code (`Scripts/make-icon.swift`), not stored as artwork, so every
 size in the iconset comes from one set of numbers. The `AppMark` view used
