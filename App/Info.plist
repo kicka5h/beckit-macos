@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Beckit</string>
+    <key>CFBundleDisplayName</key>
+    <string>Beckit</string>
+    <key>CFBundleExecutable</key>
+    <string>Beckit</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.beckit.Beckit</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>4.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>26.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>MIT licensed. Beckit contributors.</string>
+    <!-- GitHub OAuth app client ID. Not a secret: the device flow uses no
+         client secret. CI replaces this with the real value at build time. -->
+    <key>BeckitOAuthClientID</key>
+    <string></string>
+</dict>
+</plist>

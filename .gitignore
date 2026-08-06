@@ -1,0 +1,8 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+build/
+Vendor/libgit2/
+Vendor/*.xcframework

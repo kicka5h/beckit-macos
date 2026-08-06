@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      # The git integration tests make real commits, so the runner needs an
+      # identity. Without this they fail with "Please tell me who you are".
+      - name: Configure git identity
+        run: |
+          git config --global user.email "ci@beckit.invalid"
+          git config --global user.name "Beckit CI"
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - name: Build app bundle
+        run: Scripts/build-app.sh release
+
+      - name: Check the bundle actually launches
+        run: |
+          # A bundle that builds but cannot start is the failure mode worth
+          # catching here: a missing Info.plist key or a bad executable path
+          # produces a clean build and an app that does nothing.
+          build/Beckit.app/Contents/MacOS/Beckit &
+          PID=$!
+          sleep 5
+          if ! kill -0 $PID 2>/dev/null; then
+            echo "::error::Beckit exited during launch"
+            exit 1
+          fi
+          kill $PID
