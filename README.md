@@ -63,17 +63,29 @@ writing; the writing itself is plain text on the window's own material.
 
 ### The mark
 
-A bookmark, with the versions it has been through receding behind it — the two
-things the app is for, in one shape. Cream on ink.
+An open book whose spine is a pencil — the two things the app is for, sharing
+one line. Each page's top edge flows into that side of the pencil and down to
+the point, so page and pencil are a single unbroken contour rather than two
+shapes stacked together.
 
 It is drawn in code (`Scripts/make-icon.swift`), not stored as artwork, so every
-size in the iconset comes from the same geometry and the icon can never drift
-from the `AppMark` view used inside the app. The composition is fitted and
-optically centred at render time rather than positioned by hand, and it is drawn
-full-bleed because macOS 26 masks app icons to the system shape itself — artwork
-that ships its own rounded rectangle ends up inset twice.
+size in the iconset comes from one set of numbers. The `AppMark` view used
+inside the app mirrors the same geometry in SwiftUI; the generator is a
+standalone script and cannot import app code, so those two are kept in step by
+hand — change one and you must change the other.
 
-At 16pt it reads as a bookmark; the stack emerges from 32pt up.
+Two things it does that a static asset cannot:
+
+- **Optical sizing.** A stroke weight that looks elegant at 512pt is under a
+  pixel wide at 16pt and renders as a grey smudge. The weight ramps up as the
+  canvas shrinks, so the 16pt icon stays legible.
+- **Size-dependent detail.** The line across the pencil's sharpened end is
+  dropped below 64pt, where the taper is only a few pixels wide and the detail
+  would land as a blot.
+
+It is drawn full-bleed, because macOS 26 masks app icons to the system shape
+itself — artwork that ships its own rounded rectangle ends up inset twice and
+sits visibly small in the Dock.
 
 ## Storage format
 

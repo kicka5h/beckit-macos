@@ -2,16 +2,19 @@
 //
 // Draws the Beckit app icon and packages it as Beckit.icns.
 //
-// The mark is a bookmark ribbon whose tail forks into two uneven tails: a
-// bookmark at a glance, a branch on second look, which is the whole app —
-// writing, and every version of it. One shape, no text, no gradient inside the
-// mark, so it still reads at 16pt in the Dock and the menu bar.
+// An open book whose spine is a pencil: the two things the app is for, sharing
+// one line. Drawn as outlined strokes with round caps, pink on a near-white
+// ground.
 //
-// Cream on ink, because that is what the app is for.
+// Line-art icons are the hard case for an app icon, because a stroke that looks
+// elegant at 512pt is under a pixel wide at 16pt in the menu bar. So the stroke
+// weight here is optically sized — it thickens as the canvas shrinks — and the
+// smallest sizes drop the pencil's graphite line, which is detail no 16pt icon
+// can resolve. See `strokeWidth(for:)`.
 //
 // Artwork is drawn full-bleed. macOS 26 masks app icons to the system shape
 // itself, so an icon that ships its own rounded rectangle and padding ends up
-// inset twice and visibly smaller than everything beside it in the Dock.
+// inset twice and sits visibly small in the Dock.
 //
 // Usage: Scripts/make-icon.swift [output-directory]
 
@@ -21,149 +24,147 @@ import Foundation
 
 // MARK: - Palette
 
-let inkTop = CGColor(red: 0.38, green: 0.43, blue: 1.00, alpha: 1)      // periwinkle
-let inkBottom = CGColor(red: 0.11, green: 0.12, blue: 0.42, alpha: 1)   // deep indigo
-let paper = CGColor(red: 1.00, green: 0.97, blue: 0.92, alpha: 1)       // warm cream
+let ink = CGColor(red: 0.839, green: 0.278, blue: 0.608, alpha: 1)      // pink
+let groundTop = CGColor(red: 1.000, green: 0.980, blue: 0.990, alpha: 1)
+let groundBottom = CGColor(red: 0.988, green: 0.914, blue: 0.953, alpha: 1)
+
+// MARK: - Geometry
+//
+// Everything below is expressed in a 1024-unit design space with the origin at
+// the top left, so the numbers read the way the shape is drawn on paper. The
+// same geometry renders every size in the iconset.
+
+private enum Design {
+    static let canvas: CGFloat = 1024
+    static let centerX: CGFloat = 512
+    /// The mark's ink sits slightly above the middle of its own bounds — the
+    /// heavy base is lower than the light page tops — so it needs nudging down
+    /// to look centred in the tile.
+    static let opticalOffsetY: CGFloat = 15
+
+    // Outer covers. The top corners sit *higher* than the spine, so the page
+    // edges slope inward and down — an open book seen face on. Curving them the
+    // other way turns the whole mark into a bag with a slot in it.
+    static let outerLeft: CGFloat = 210
+    static let outerRight: CGFloat = 814
+    static let coverTop: CGFloat = 283
+    static let coverBottom: CGFloat = 645
+    // Bottom edge. The controls are pulled *inward* from the covers as well as
+    // down: placing them directly below the corners makes the sides bow out and
+    // the book reads as a bowl.
+    static let baseControl: CGFloat = 754
+    static let baseControlInset: CGFloat = 74
+
+    // Page top edge: lifts a little off the cover before falling to the spine,
+    // which is what gives the pages their fan.
+    static let pageControl1 = CGPoint(x: 272, y: 251)
+    static let pageControl2 = CGPoint(x: 382, y: 305)
+
+    // Pencil. Narrow enough to read as a pencil rather than a gap between the
+    // pages — roughly 1:3.6 barrel, which is about where a pencil stops looking
+    // like a crayon.
+    static let pencilLeft: CGFloat = 467
+    static let pencilRight: CGFloat = 557
+    static let pencilTop: CGFloat = 343
+    static let shoulder: CGFloat = 568      // where the barrel starts tapering
+    static let tip: CGFloat = 673
+    static let graphite: CGFloat = 608      // the line across the sharpened end
+}
+
+/// The stroke weight, in design units, for a given rendered pixel size.
+///
+/// A single relative weight cannot serve both ends of the iconset: at 1024 it
+/// wants to be delicate, and at 16 that same ratio renders as a grey smudge.
+/// This ramps the weight up as the canvas shrinks, which is what a type
+/// designer would call optical sizing and what keeps the 16pt icon legible.
+func strokeWidth(for pixelSize: CGFloat) -> CGFloat {
+    let base: CGFloat = 46
+    let t = min(max((256 - pixelSize) / (256 - 16), 0), 1)
+    return base * (1 + 0.55 * t)
+}
 
 // MARK: - Drawing
 
-/// Draws the icon into `context` on a `size` × `size` canvas.
-///
-/// Everything is expressed as a fraction of the canvas so the same code renders
-/// every size in the iconset without a second set of hand-tuned numbers.
 func drawIcon(in context: CGContext, size: CGFloat) {
-    let unit = size / 1024
+    let unit = size / Design.canvas
 
-    // Background: a full-bleed vertical gradient. Lighter at the top so the
-    // icon reads with a light source above it, the way the rest of the system
-    // material does.
-    let space = CGColorSpaceCreateDeviceRGB()
+    /// Design space (top-left origin) to Core Graphics space (bottom-left).
+    func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+        CGPoint(x: x * unit, y: size - (y + Design.opticalOffsetY) * unit)
+    }
+
+    // Ground: full bleed, with just enough of a gradient to keep it from
+    // reading as flat white.
     if let gradient = CGGradient(
-        colorsSpace: space, colors: [inkTop, inkBottom] as CFArray, locations: [0, 1]) {
+        colorsSpace: CGColorSpaceCreateDeviceRGB(),
+        colors: [groundTop, groundBottom] as CFArray,
+        locations: [0, 1]) {
         context.drawLinearGradient(
             gradient,
             start: CGPoint(x: 0, y: size),
-            end: CGPoint(x: size, y: 0),
+            end: CGPoint(x: 0, y: 0),
             options: [])
     }
 
-    // Specular highlight: the soft top-left sheen that makes the surface look
-    // like a material rather than a swatch.
-    context.saveGState()
-    if let sheen = CGGradient(
-        colorsSpace: space,
-        colors: [
-            CGColor(red: 1, green: 1, blue: 1, alpha: 0.30),
-            CGColor(red: 1, green: 1, blue: 1, alpha: 0),
-        ] as CFArray,
-        locations: [0, 1]) {
-        context.drawRadialGradient(
-            sheen,
-            startCenter: CGPoint(x: size * 0.24, y: size * 0.86), startRadius: 0,
-            endCenter: CGPoint(x: size * 0.24, y: size * 0.86), endRadius: size * 0.72,
-            options: [])
-    }
-    context.restoreGState()
+    // Covers and base, as one stroke: down the left cover, across the bottom,
+    // up the right. Drawing it continuously is what gives the bottom corners
+    // their curve without a corner radius anywhere in the code.
+    let frame = CGMutablePath()
+    frame.move(to: point(Design.outerLeft, Design.coverTop))
+    frame.addLine(to: point(Design.outerLeft, Design.coverBottom))
+    frame.addCurve(
+        to: point(Design.outerRight, Design.coverBottom),
+        control1: point(Design.outerLeft + Design.baseControlInset, Design.baseControl),
+        control2: point(Design.outerRight - Design.baseControlInset, Design.baseControl))
+    frame.addLine(to: point(Design.outerRight, Design.coverTop))
 
-    // The mark, in a top-left coordinate system so the geometry reads the way
-    // it is drawn on paper. Core Graphics is bottom-left, hence the flip.
-    func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-        CGPoint(x: x * unit, y: size - y * unit)
-    }
-
-    /// One bookmark ribbon: rounded shoulders, symmetric notch.
-    func ribbon(offsetX: CGFloat, offsetY: CGFloat) -> CGPath {
-        let left = 402 + offsetX
-        let right = 662 + offsetX
-        let top = 322 + offsetY
-        let tail = 788 + offsetY
-        let notch = 702 + offsetY
-        let shoulder: CGFloat = 30
-
+    /// One page's top edge, flowing into that side of the pencil and down to
+    /// the tip. Page and pencil are a single unbroken line — that shared
+    /// contour is the whole idea of the mark, and breaking it into separate
+    /// shapes would lose it.
+    func page(mirrored: Bool) -> CGPath {
+        func x(_ value: CGFloat) -> CGFloat {
+            mirrored ? 2 * Design.centerX - value : value
+        }
         let path = CGMutablePath()
-        path.move(to: point(left, top + shoulder))
-        path.addQuadCurve(to: point(left + shoulder, top), control: point(left, top))
-        path.addLine(to: point(right - shoulder, top))
-        path.addQuadCurve(to: point(right, top + shoulder), control: point(right, top))
-        path.addLine(to: point(right, tail))
-        path.addLine(to: point((left + right) / 2, notch))
-        path.addLine(to: point(left, tail))
-        path.closeSubpath()
+        path.move(to: point(x(Design.outerLeft), Design.coverTop))
+        path.addCurve(
+            to: point(x(Design.pencilLeft), Design.pencilTop),
+            control1: point(x(Design.pageControl1.x), Design.pageControl1.y),
+            control2: point(x(Design.pageControl2.x), Design.pageControl2.y))
+        path.addLine(to: point(x(Design.pencilLeft), Design.shoulder))
+        path.addLine(to: point(Design.centerX, Design.tip))
         return path
     }
 
-    // Three ribbons receding up and to the left: a bookmark, and behind it the
-    // versions it has been through. The stack is what makes the mark specific
-    // to this app rather than to every reading app ever made — and unlike a
-    // lopsided tail, an offset stack reads as deliberate at any size.
-    //
-    // Drawn back to front so the nearer ribbon overlaps the one behind it.
-    let layers: [(dx: CGFloat, dy: CGFloat, alpha: CGFloat)] = [
-        (-84, -72, 0.24),
-        (-42, -36, 0.50),
-        (0, 0, 1.0),
-    ]
-    let paths = layers.map { ribbon(offsetX: $0.dx, offsetY: $0.dy) }
+    context.setStrokeColor(ink)
+    context.setLineCap(.round)
+    context.setLineJoin(.round)
+    context.setLineWidth(strokeWidth(for: size) * unit)
 
-    // Fit the composition rather than positioning it by hand: measure what the
-    // three ribbons actually occupy, then centre that and scale it to a fixed
-    // share of the canvas. Adjusting an offset above can no longer knock the
-    // mark off centre, and every size in the iconset lands identically.
-    let bounds = paths.dropFirst().reduce(paths[0].boundingBoxOfPath) {
-        $0.union($1.boundingBoxOfPath)
-    }
-    // 62% leaves the margin macOS 26's icon mask expects. Artwork that runs
-    // closer to the edge gets clipped by the system's rounded shape.
-    let scale = (size * 0.62) / bounds.height
+    context.addPath(frame)
+    context.addPath(page(mirrored: false))
+    context.addPath(page(mirrored: true))
+    context.strokePath()
 
-    context.saveGState()
-    // Optical, not geometric, centring. The solid front ribbon carries nearly
-    // all the visual weight and sits down-right within the group, so a
-    // mathematically centred bounding box reads as leaning that way. Nudging
-    // the group back up-left puts the ribbon where the eye expects it.
-    context.translateBy(x: size / 2 - size * 0.022, y: size / 2 + size * 0.018)
-    context.scaleBy(x: scale, y: scale)
-    context.translateBy(x: -bounds.midX, y: -bounds.midY)
+    // The graphite line across the sharpened end. Below 64pt the taper is only
+    // a few pixels wide and this turns into a blot, so it is left off — a
+    // detail that cannot be resolved is worse than no detail.
+    guard size >= 64 else { return }
 
-    for (layer, path) in zip(layers, paths) {
-        context.saveGState()
+    let taper = (Design.tip - Design.shoulder)
+    let inset = (Design.graphite - Design.shoulder) / taper
+        * (Design.centerX - Design.pencilLeft)
 
-        if layer.alpha == 1 {
-            // Only the front ribbon casts a shadow. Shadowing every layer
-            // muddies the gaps and the stack stops reading as separate sheets.
-            context.setShadow(
-                offset: CGSize(width: 0, height: -14 * unit),
-                blur: 34 * unit,
-                color: CGColor(red: 0.04, green: 0.04, blue: 0.18, alpha: 0.40))
-        }
-        context.setFillColor(paper.copy(alpha: layer.alpha) ?? paper)
-        context.addPath(path)
-        context.fillPath()
-        context.restoreGState()
+    let graphite = CGMutablePath()
+    graphite.move(to: point(Design.pencilLeft + inset, Design.graphite))
+    graphite.addLine(to: point(Design.pencilRight - inset, Design.graphite))
 
-        // A barely-there vertical gradient down the front ribbon, laid over the
-        // solid fill so the fill is what casts the shadow. Flat cream reads as
-        // a sticker; a graded surface reads as lit, which is the premise of the
-        // whole material.
-        guard layer.alpha == 1 else { continue }
-        context.saveGState()
-        context.addPath(path)
-        context.clip()
-        let box = path.boundingBoxOfPath
-        if let warm = CGGradient(
-            colorsSpace: space,
-            colors: [paper, CGColor(red: 0.96, green: 0.91, blue: 0.84, alpha: 1)] as CFArray,
-            locations: [0, 1]) {
-            context.drawLinearGradient(
-                warm,
-                start: CGPoint(x: box.midX, y: box.maxY),
-                end: CGPoint(x: box.midX, y: box.minY),
-                options: [])
-        }
-        context.restoreGState()
-    }
-
-    context.restoreGState()
+    // Slightly lighter than the outline. At full weight this short segment
+    // reads as a blob wedged between the taper lines rather than a division.
+    context.setLineWidth(strokeWidth(for: size) * 0.8 * unit)
+    context.addPath(graphite)
+    context.strokePath()
 }
 
 // MARK: - Rendering

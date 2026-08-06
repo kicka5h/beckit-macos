@@ -108,61 +108,93 @@ struct WelcomeView: View {
 }
 
 /// The app mark, drawn rather than loaded, so it stays crisp at any size and
-/// there is no second copy of the artwork to keep in step with the icon.
+/// there is no image asset to keep in step with the window.
+///
+/// The geometry mirrors `Scripts/make-icon.swift` — same 1024-unit design
+/// space, same numbers — so the mark in the window and the icon in the Dock are
+/// the same drawing. The icon generator is a standalone script and cannot
+/// import this file, so the two are kept in step by hand; changing one means
+/// changing the other.
 struct AppMark: View {
     var size: CGFloat
 
+    static let ink = Color(red: 0.839, green: 0.278, blue: 0.608)
+    static let groundTop = Color(red: 1.000, green: 0.980, blue: 0.990)
+    static let groundBottom = Color(red: 0.988, green: 0.914, blue: 0.953)
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.38, green: 0.43, blue: 1.00),
-                            Color(red: 0.11, green: 0.12, blue: 0.42),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Self.groundTop, Self.groundBottom],
+                    startPoint: .top, endPoint: .bottom))
 
-            // The same receding stack as the app icon: a bookmark, and the
-            // versions behind it.
-            ZStack {
-                bookmark.opacity(0.24).offset(x: -size * 0.082, y: -size * 0.070)
-                bookmark.opacity(0.50).offset(x: -size * 0.041, y: -size * 0.035)
-                bookmark
-            }
-            .offset(x: size * 0.02, y: size * 0.012)
+            BookAndPencil(includeGraphite: size >= 64)
+                .stroke(Self.ink, style: StrokeStyle(
+                    lineWidth: size * 46 / 1024, lineCap: .round, lineJoin: .round))
         }
         .frame(width: size, height: size)
-        .shadow(color: .black.opacity(0.22), radius: size * 0.06, y: size * 0.03)
-    }
-
-    private var bookmark: some View {
-        BookmarkShape()
-            .fill(Color(red: 1.0, green: 0.97, blue: 0.92))
-            .frame(width: size * 0.25, height: size * 0.45)
+        .shadow(color: .black.opacity(0.10), radius: size * 0.05, y: size * 0.02)
     }
 }
 
-/// A bookmark ribbon: rounded shoulders, symmetric notch.
-struct BookmarkShape: Shape {
+/// An open book whose spine is a pencil.
+///
+/// Drawn in the same 1024-unit space as the icon and scaled to `rect`. SwiftUI
+/// shapes already run top-left down, which is the space the geometry is written
+/// in, so unlike the Core Graphics version there is no flip here.
+struct BookAndPencil: Shape {
+    var includeGraphite = true
+
     func path(in rect: CGRect) -> Path {
-        let shoulder = rect.width * 0.115
-        let notch = rect.height * 0.185
+        let unit = min(rect.width, rect.height) / 1024
+        func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * unit, y: rect.minY + (y + 15) * unit)
+        }
+
+        let outerLeft: CGFloat = 210, outerRight: CGFloat = 814, centerX: CGFloat = 512
+        let coverTop: CGFloat = 283, coverBottom: CGFloat = 645
+        let pencilLeft: CGFloat = 467, pencilRight: CGFloat = 557
+        let pencilTop: CGFloat = 343, shoulder: CGFloat = 568, tip: CGFloat = 673
+        let graphite: CGFloat = 608
 
         var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY + shoulder))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.minX + shoulder, y: rect.minY),
-            control: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - shoulder, y: rect.minY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.minY + shoulder),
-            control: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY - notch))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.closeSubpath()
+
+        // Covers and base as one line: down the left, across the bottom, up the
+        // right. The bottom's controls are inset from the corners so the sides
+        // do not bow outward.
+        path.move(to: at(outerLeft, coverTop))
+        path.addLine(to: at(outerLeft, coverBottom))
+        path.addCurve(
+            to: at(outerRight, coverBottom),
+            control1: at(outerLeft + 74, 754),
+            control2: at(outerRight - 74, 754))
+        path.addLine(to: at(outerRight, coverTop))
+
+        // Each page's top edge flows into that side of the pencil and down to
+        // the point — page and pencil share one contour, which is the idea of
+        // the mark.
+        for mirrored in [false, true] {
+            func x(_ value: CGFloat) -> CGFloat {
+                mirrored ? 2 * centerX - value : value
+            }
+            path.move(to: at(x(outerLeft), coverTop))
+            path.addCurve(
+                to: at(x(pencilLeft), pencilTop),
+                control1: at(x(272), 251),
+                control2: at(x(382), 305))
+            path.addLine(to: at(x(pencilLeft), shoulder))
+            path.addLine(to: at(centerX, tip))
+        }
+
+        // The line across the sharpened end. Left off at small sizes, where the
+        // taper is a few pixels wide and this becomes a blot.
+        if includeGraphite {
+            let inset = (graphite - shoulder) / (tip - shoulder) * (centerX - pencilLeft)
+            path.move(to: at(pencilLeft + inset, graphite))
+            path.addLine(to: at(pencilRight - inset, graphite))
+        }
+
         return path
     }
 }
