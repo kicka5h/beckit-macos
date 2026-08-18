@@ -12,14 +12,22 @@ struct EditorTheme: Sendable {
     var bodySize: CGFloat = 14
     /// Leading, as a multiple of the font's natural line height.
     ///
-    /// Kept modest because NSTextView draws the caret the full height of the
-    /// line fragment: at 14pt a 1.5 multiple makes a 25.5pt fragment around a
-    /// 16.5pt typeface, and the caret overshoots the letters by half its own
-    /// height top and bottom. `ProseTextView` trims the caret back to the type,
-    /// but tight-enough leading means it barely has to.
-    var lineHeightMultiple: CGFloat = 1.25
-    /// Measure, in characters. Prose is unreadable across a 27-inch display, so
-    /// the text column stays narrow and centred no matter how wide the window.
+    /// Left at natural, and that is not a matter of taste. AppKit draws the
+    /// caret the full height of the line fragment, and in TextKit 2 there is no
+    /// way to change that: the caret is an `NSTextInsertionIndicator` subview
+    /// whose frame NSTextView owns, and the class exposes only display mode,
+    /// colour and blink options — no geometry. `drawInsertionPoint` is never
+    /// called on a TextKit 2 text view.
+    ///
+    /// So leading and caret height are the same number. At 14pt the type is
+    /// 16.5pt tall and a natural line is 17.0pt, which puts the caret 3% over
+    /// the letters. A 1.25 multiple makes it 29% over, and 1.5 makes it 55% —
+    /// both read as a cursor that belongs to a bigger font than the text.
+    ///
+    /// Air between paragraphs comes from `paragraphSpacing`, which costs the
+    /// caret nothing.
+    var lineHeightMultiple: CGFloat = 1.0
+
     var measure: CGFloat = 68
 
     static let `default` = EditorTheme()
