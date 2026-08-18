@@ -124,7 +124,7 @@ struct MarkdownEditor: NSViewRepresentable {
                   let scrollView = textView.enclosingScrollView
             else { return }
 
-            let idealWidth = theme.measure * theme.bodyFont.maximumAdvancement.width
+            let idealWidth = theme.idealColumnWidth
             let available = scrollView.contentSize.width
             let width = min(idealWidth, available - 32)
             guard width > 0 else { return }

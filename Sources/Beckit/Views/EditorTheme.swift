@@ -9,23 +9,41 @@ import SwiftUI
 /// reading and for editing at the same time: syntax marks are dimmed rather
 /// than hidden, and nothing reflows when the caret arrives.
 struct EditorTheme: Sendable {
-    var bodySize: CGFloat = 17
+    var bodySize: CGFloat = 14
     var lineHeightMultiple: CGFloat = 1.5
-    var paragraphSpacing: CGFloat = 10
     /// Measure, in characters. Prose is unreadable across a 27-inch display, so
     /// the text column stays narrow and centred no matter how wide the window.
     var measure: CGFloat = 68
 
     static let `default` = EditorTheme()
 
+    /// The same face as the rest of the app — the system font. Prose used to be
+    /// set in New York, the system serif, which read as a different application
+    /// from the one around it.
     var bodyFont: NSFont {
-        // New York — Apple's system serif. Ships with macOS, so there is no
-        // font to bundle and it hits every weight and optical size.
-        let descriptor = NSFont.systemFont(ofSize: bodySize).fontDescriptor
-            .withDesign(.serif) ?? NSFont.systemFont(ofSize: bodySize).fontDescriptor
-        return NSFont(descriptor: descriptor, size: bodySize)
-            ?? .systemFont(ofSize: bodySize)
+        .systemFont(ofSize: bodySize)
     }
+
+    /// Space between paragraphs, in proportion to the type. Fixed values look
+    /// right at one size and wrong at every other.
+    var paragraphSpacing: CGFloat { (bodySize * 0.6).rounded() }
+
+    /// Width of one character of body text, averaged across the lowercase
+    /// alphabet.
+    ///
+    /// Not `maximumAdvancement`, which is the *widest* glyph in the font and
+    /// close to double the average for a proportional face. Sizing the column
+    /// with it made the ideal width about 1150pt, which always lost against the
+    /// available width — so the measure never applied and prose ran the full
+    /// width of the window however wide it got.
+    var averageCharacterWidth: CGFloat {
+        let sample = "abcdefghijklmnopqrstuvwxyz" as NSString
+        return sample.size(withAttributes: [.font: bodyFont]).width
+            / CGFloat(sample.length)
+    }
+
+    /// How wide the text column wants to be: `measure` characters of body text.
+    var idealColumnWidth: CGFloat { measure * averageCharacterWidth }
 
     func heading(level: Int) -> NSFont {
         let scale: CGFloat = switch level {
@@ -35,9 +53,7 @@ struct EditorTheme: Sendable {
         default: 1.06
         }
         let size = (bodySize * scale).rounded()
-        let base = NSFont.systemFont(ofSize: size, weight: .semibold)
-        let descriptor = base.fontDescriptor.withDesign(.serif) ?? base.fontDescriptor
-        return NSFont(descriptor: descriptor, size: size) ?? base
+        return .systemFont(ofSize: size, weight: .semibold)
     }
 
     var monospaceFont: NSFont {
