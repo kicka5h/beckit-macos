@@ -2,6 +2,7 @@ import BeckitGit
 import BeckitKit
 import Foundation
 import Observation
+import SwiftUI
 
 /// The open book: its manifest, the document being edited, and everything the
 /// window needs to render.
@@ -19,7 +20,14 @@ final class Workspace {
     private(set) var book: Book
     private(set) var planning: [PlanningTree.Node] = []
 
-    var selection: BookSection.ID?
+    /// The open section.
+    ///
+    /// Read-only from outside so that changing it has to go through
+    /// `select(_:)`, which is what saves the outgoing section and loads the
+    /// incoming one's text, history and word count. A list bound straight to
+    /// this property writes it without any of that, and the editor silently
+    /// keeps showing whatever it was already on — use `selectionBinding`.
+    private(set) var selection: BookSection.ID?
     /// Live text of the open section.
     var text: String = ""
 
@@ -84,6 +92,11 @@ final class Workspace {
 
     var currentSection: BookSection? {
         selection.flatMap { book[$0] }
+    }
+
+    /// Binding for a list's selection, routed through `select(_:)`.
+    var selectionBinding: Binding<BookSection.ID?> {
+        Binding(get: { self.selection }, set: { self.select($0) })
     }
 
     func select(_ id: BookSection.ID?) {

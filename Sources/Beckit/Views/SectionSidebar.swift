@@ -11,7 +11,7 @@ struct SectionSidebar: View {
     @State private var draftTitle = ""
 
     var body: some View {
-        List(selection: $workspace.selection) {
+        List(selection: workspace.selectionBinding) {
             matterSection(.frontMatter, title: "Front Matter")
             chapters
             matterSection(.backMatter, title: "Back Matter")

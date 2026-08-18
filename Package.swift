@@ -31,5 +31,6 @@ let package = Package(
 
         .testTarget(name: "BeckitKitTests", dependencies: ["BeckitKit"]),
         .testTarget(name: "BeckitGitTests", dependencies: ["BeckitGit", "BeckitKit"]),
+        .testTarget(name: "BeckitAppTests", dependencies: ["Beckit"]),
     ]
 )
