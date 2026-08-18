@@ -15,9 +15,26 @@ let package = Package(
         // on the main actor.
         .target(name: "BeckitKit"),
 
+        // libgit2, built static and universal by Scripts/build-libgit2.sh and
+        // committed so a clone builds without cmake. Bundled rather than shelled
+        // out to: /usr/bin/git on a clean Mac is a stub that pops the "install
+        // command line developer tools" dialog, which is not something to put in
+        // front of someone who just wants to write.
+        .binaryTarget(name: "Clibgit2", path: "Vendor/libgit2.xcframework"),
+
         // Git access. Written against a protocol so the app never touches
         // libgit2 types directly.
-        .target(name: "BeckitGit", dependencies: ["BeckitKit"]),
+        .target(
+            name: "BeckitGit",
+            dependencies: ["BeckitKit", "Clibgit2"],
+            linkerSettings: [
+                // The static archive records none of its own dependencies.
+                .linkedLibrary("z"),
+                .linkedLibrary("iconv"),
+                .linkedFramework("Security"),
+                .linkedFramework("CoreFoundation"),
+            ]
+        ),
 
         // Book PDF generation using TextKit + Core Graphics. Replaces the
         // bundled pandoc + TeX Live toolchain outright.

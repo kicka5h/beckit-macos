@@ -59,7 +59,7 @@ final class Library {
                 // A folder with no book in it becomes one. Choosing a directory
                 // is the only "new book" gesture there needs to be.
                 try store.initializeBook(title: root.lastPathComponent)
-                _ = try? SystemGitRepository.initialize(at: root)
+                _ = try? LibGit2Repository.initialize(at: root)
             }
 
             let workspace = try Workspace.open(at: root)

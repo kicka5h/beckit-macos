@@ -126,8 +126,8 @@ struct ImportView: View {
     /// The old layout was always a git clone, but a folder copied off a backup
     /// might not be — so create a repository if there isn't one.
     nonisolated private static func repository(at root: URL) throws -> any GitRepository {
-        if let existing = try? SystemGitRepository(root: root) { return existing }
-        return try SystemGitRepository.initialize(at: root)
+        if let existing = try? LibGit2Repository(root: root) { return existing }
+        return try LibGit2Repository.initialize(at: root)
     }
 }
 

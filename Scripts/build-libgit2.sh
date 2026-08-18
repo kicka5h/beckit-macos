@@ -62,14 +62,36 @@ done
 UNIVERSAL="$VENDOR/libgit2-universal.a"
 lipo -create "${SLICES[@]}" -output "$UNIVERSAL"
 
+# Headers, plus the module map Swift needs to import them. An xcframework built
+# straight from libgit2's include directory carries no modulemap, and SwiftPM
+# then has nothing to `import Clibgit2` from — the binary target resolves and
+# every symbol is still missing.
+HEADERS="$VENDOR/headers"
+rm -rf "$HEADERS"
+mkdir -p "$HEADERS"
+cp -R "$SOURCE/include/"* "$HEADERS/"
+
+cat > "$HEADERS/module.modulemap" <<'MODULEMAP'
+module Clibgit2 {
+    umbrella header "git2.h"
+    link "git2"
+    export *
+}
+MODULEMAP
+
 rm -rf "$VENDOR/libgit2.xcframework"
 xcodebuild -create-xcframework \
     -library "$UNIVERSAL" \
-    -headers "$SOURCE/include" \
+    -headers "$HEADERS" \
     -output "$VENDOR/libgit2.xcframework"
 
 rm -f "$UNIVERSAL"
-rm -rf "$VENDOR/build-arm64" "$VENDOR/build-x86_64"
+rm -rf "$VENDOR/build-arm64" "$VENDOR/build-x86_64" "$HEADERS"
+
+# libgit2 links against system libraries that SwiftPM has to be told about; the
+# static archive records no dependencies of its own.
+echo
+echo "Link the app against: -lz -liconv, and the Security and CoreFoundation frameworks."
 
 echo
 echo "Built $VENDOR/libgit2.xcframework"

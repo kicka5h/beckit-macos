@@ -235,19 +235,39 @@ repository or a window.
 
 Working: editor, sidebar, chapter and matter CRUD, reorder, auto-versioning,
 version history and restore, word counts, PDF export, GitHub device-flow
-sign-in, keychain storage, and 3.x import.
+sign-in, keychain storage, 3.x import, and git through bundled libgit2.
 
 Not done yet, in rough order:
 
-1. **`LibGit2Repository`.** Git currently runs through `/usr/bin/git`, which is
-   fine for development but on a clean Mac triggers the "install command line
-   developer tools" dialog on first sync. `Scripts/build-libgit2.sh` builds the
-   vendored library; the backend that uses it is not written.
-2. **Repository picker.** Sign-in works and `GitHubClient` can list and create
+1. **Repository picker.** Sign-in works and `GitHubClient` can list and create
    repositories, but there is no UI to clone one — you open a local folder.
-3. **Planning pane editing.** The tree renders; files are not yet openable.
-4. **Scratch pad** and the CLI tools.
-5. Signing, notarisation, and a release workflow.
+2. **Planning pane editing.** The tree renders; files are not yet openable.
+3. **Scratch pad** and the CLI tools.
+4. Signing, notarisation, and a release workflow.
+
+## Git
+
+Git is libgit2, linked into the app. Nothing shells out.
+
+That is the whole point: `/usr/bin/git` on a Mac without the Xcode command line
+tools is a stub that pops the "install command line developer tools" dialog, and
+a writer opening their book should never meet it. `otool` on the built binary
+shows no libgit2 dylib and nothing outside the system frameworks.
+
+`Scripts/build-libgit2.sh` builds it — static, universal, TLS through
+SecureTransport, SSH off — and writes `Vendor/libgit2.xcframework`, including
+the module map SwiftPM needs to import the C headers. That xcframework is
+committed (5MB) so a clone builds with `swift build` and no cmake. Rebuild it
+against a different version with `Scripts/build-libgit2.sh v1.9.1`.
+
+Both backends live behind the `GitRepository` protocol, and
+`BackendParityTests` runs one suite against both — `SystemGitRepository`, which
+is git itself, as the reference, and `LibGit2Repository`, which ships.
+Divergence between them is a bug in the new one by definition. That suite has
+already earned its keep: it caught that git's ref globs are path-component
+based, so `refs/tags/beckit/*` never matched Beckit's two-deep version tags,
+and that neither backend was pushing tags at all — which would have left a
+second machine with no version history.
 
 ## License
 

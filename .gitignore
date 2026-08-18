@@ -4,5 +4,7 @@
 DerivedData/
 *.xcuserstate
 build/
+# libgit2 sources and per-arch build dirs are scratch; the resulting
+# xcframework is committed so a clone builds without cmake.
 Vendor/libgit2/
-Vendor/*.xcframework
+Vendor/build-*/

@@ -123,7 +123,8 @@ public struct SystemGitRepository: GitRepository {
         guard (try? remoteURL()) != nil else { throw GitError.noRemote }
         let branch = try currentBranch()
         do {
-            try git(["push", "origin", branch], credentials: credentials)
+            try git(["push", "origin", branch, "refs/tags/*:refs/tags/*"],
+                    credentials: credentials)
         } catch {
             // The remote moved ahead. Rebase onto it and try once more.
             try git(["fetch", "origin"], credentials: credentials)
@@ -133,7 +134,8 @@ public struct SystemGitRepository: GitRepository {
                 try? git(["rebase", "--abort"])
                 throw GitError.diverged
             }
-            try git(["push", "origin", branch], credentials: credentials)
+            try git(["push", "origin", branch, "refs/tags/*:refs/tags/*"],
+                    credentials: credentials)
         }
     }
 
@@ -180,15 +182,20 @@ public struct SystemGitRepository: GitRepository {
     }
 
     public func tags(withPrefix prefix: String) throws -> [(name: String, commit: GitCommit.ID)] {
+        // Every tag, filtered here rather than by a ref pattern. git's globs
+        // are path-component based, so `refs/tags/beckit/*` matches
+        // `refs/tags/beckit/x` but not `refs/tags/beckit/<id>/v1.0.0` — and
+        // Beckit's tags are two components deep.
+        //
         // `for-each-ref` spells a literal byte `%1f`; `%x1f` is `git log`'s
         // syntax and comes back as the four characters "%x1f".
         let output = try git([
             "for-each-ref", "--format=%(refname:strip=2)%1f%(objectname)",
-            "refs/tags/\(prefix)*",
+            "refs/tags/",
         ])
         return output.split(whereSeparator: \.isNewline).compactMap { line in
             let fields = line.split(separator: "\u{1f}")
-            guard fields.count == 2 else { return nil }
+            guard fields.count == 2, fields[0].hasPrefix(prefix) else { return nil }
             return (String(fields[0]), String(fields[1]))
         }
     }

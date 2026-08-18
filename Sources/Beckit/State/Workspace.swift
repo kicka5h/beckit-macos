@@ -80,10 +80,14 @@ final class Workspace {
         let store = BookStore(root: root)
         guard store.hasManifest else { throw BookStoreError.notABook(root) }
 
+        // libgit2, linked into the app: /usr/bin/git on a Mac without the Xcode
+        // command line tools is a stub that pops the "install developer tools"
+        // dialog, and a writer opening their book should never meet it.
+        //
         // A book folder restored from a backup can have lost its .git; make it
         // a repository again rather than refusing to open the writing.
-        let git = try (try? SystemGitRepository(root: root))
-            ?? SystemGitRepository.initialize(at: root)
+        let git = try (try? LibGit2Repository(root: root))
+            ?? LibGit2Repository.initialize(at: root)
 
         return Workspace(store: store, git: git, book: try store.loadBook())
     }
