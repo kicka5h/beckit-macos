@@ -191,12 +191,25 @@ SwiftPM builds a bare executable; `Scripts/build-app.sh` wraps it in the bundle
 macOS needs to own a window and reach the keychain. There is no `.xcodeproj` to
 keep in sync — open `Package.swift` in Xcode if you want the IDE.
 
-To sign in to GitHub you need an OAuth app client ID (not a secret — the device
-flow uses no client secret):
+GitHub sign-in works out of the box: the OAuth app's client ID is committed in
+`App/Info.plist`. That is deliberate rather than an oversight — device flow is
+designed for public clients that cannot keep a secret, so GitHub issues no
+client secret for it and the ID ships inside every copy of the binary anyway.
+
+A fork wanting its own OAuth app can override it without touching source:
 
 ```bash
 BECKIT_OAUTH_CLIENT_ID=your_client_id Scripts/build-app.sh release
 ```
+
+If you register your own, tick **Enable Device Flow** in the app's settings on
+GitHub. It is off by default, it lives on a different screen from the one where
+you register the app, and without it sign-in fails with `device_flow_disabled`.
+
+Sign-in requests the `repo` scope, which covers private book repositories. That
+is broad — it grants read/write to every repository the account can reach. A
+GitHub App with per-repository access would be narrower, at the cost of a more
+involved install flow.
 
 ## Layout
 

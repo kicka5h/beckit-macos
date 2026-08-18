@@ -8,13 +8,25 @@ public struct GitHubClient: Sendable {
     private let session: URLSession
     private let clientID: String
 
-    /// The OAuth app's client ID. Not a secret — device flow does not use a
-    /// client secret. Injected at build time so forks can point at their own
-    /// OAuth app without patching source.
+    /// The OAuth app's client ID.
+    ///
+    /// Not a secret. Device flow is designed for public clients that cannot
+    /// keep one, so GitHub issues no client secret for it and the ID ships in
+    /// the binary either way.
+    ///
+    /// The environment wins over the bundled value so a fork, or a developer
+    /// testing against their own OAuth app, can override it without editing
+    /// Info.plist. Empty values are treated as absent — the shipped plist
+    /// carries an empty string rather than omitting the key, and a plain `??`
+    /// chain would take that empty string and never reach the environment.
     public static var defaultClientID: String {
-        Bundle.main.object(forInfoDictionaryKey: "BeckitOAuthClientID") as? String
-            ?? ProcessInfo.processInfo.environment["BECKIT_OAUTH_CLIENT_ID"]
-            ?? ""
+        let candidates = [
+            ProcessInfo.processInfo.environment["BECKIT_OAUTH_CLIENT_ID"],
+            Bundle.main.object(forInfoDictionaryKey: "BeckitOAuthClientID") as? String,
+        ]
+        return candidates
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty } ?? ""
     }
 
     public init(clientID: String = GitHubClient.defaultClientID, session: URLSession = .shared) {
@@ -24,12 +36,58 @@ public struct GitHubClient: Sendable {
 
     // MARK: - Device flow
 
-    public struct DeviceCode: Sendable, Decodable {
+    public struct DeviceCode: Sendable {
         public let deviceCode: String
         public let userCode: String
         public let verificationURI: URL
         public let expiresIn: Int
         public let interval: Int
+    }
+
+    /// Step one: ask GitHub for a code to show the writer.
+    public func requestDeviceCode(scope: String = "repo") async throws -> DeviceCode {
+        try requireClientID()
+
+        // This endpoint reports its failures as an error body with a 200
+        // status, so decoding straight into `DeviceCode` turns a perfectly
+        // clear "device flow is switched off" into an opaque decoding error.
+        let response = try await post(
+            to: "https://github.com/login/device/code",
+            body: ["client_id": clientID, "scope": scope],
+            as: DeviceCodeResponse.self)
+
+        if let error = response.error {
+            switch error {
+            case "device_flow_disabled": throw GitHubError.deviceFlowDisabled
+            case "unauthorized_client": throw GitHubError.unknownClientID
+            default: throw GitHubError.api(response.errorDescription ?? error)
+            }
+        }
+
+        guard let deviceCode = response.deviceCode,
+              let userCode = response.userCode,
+              let verificationURI = response.verificationURI,
+              let expiresIn = response.expiresIn
+        else { throw GitHubError.api("GitHub returned an incomplete device code.") }
+
+        return DeviceCode(
+            deviceCode: deviceCode,
+            userCode: userCode,
+            verificationURI: verificationURI,
+            expiresIn: expiresIn,
+            // GitHub has omitted `interval` in the past; five seconds is its
+            // documented default and polling faster earns a `slow_down`.
+            interval: response.interval ?? 5)
+    }
+
+    private struct DeviceCodeResponse: Decodable {
+        let deviceCode: String?
+        let userCode: String?
+        let verificationURI: URL?
+        let expiresIn: Int?
+        let interval: Int?
+        let error: String?
+        let errorDescription: String?
 
         enum CodingKeys: String, CodingKey {
             case deviceCode = "device_code"
@@ -37,16 +95,9 @@ public struct GitHubClient: Sendable {
             case verificationURI = "verification_uri"
             case expiresIn = "expires_in"
             case interval
+            case error
+            case errorDescription = "error_description"
         }
-    }
-
-    /// Step one: ask GitHub for a code to show the writer.
-    public func requestDeviceCode(scope: String = "repo") async throws -> DeviceCode {
-        try requireClientID()
-        return try await post(
-            to: "https://github.com/login/device/code",
-            body: ["client_id": clientID, "scope": scope],
-            as: DeviceCode.self)
     }
 
     /// Step two: poll until the writer authorises the app in their browser.
@@ -217,6 +268,8 @@ public struct GitHubClient: Sendable {
 
 public enum GitHubError: Error, LocalizedError {
     case missingClientID
+    case deviceFlowDisabled
+    case unknownClientID
     case authorizationDenied
     case deviceCodeExpired
     case invalidToken
@@ -228,6 +281,16 @@ public enum GitHubError: Error, LocalizedError {
             """
             No GitHub OAuth client ID is configured in this build. \
             Set BeckitOAuthClientID in Info.plist.
+            """
+        case .deviceFlowDisabled:
+            """
+            This GitHub OAuth app does not have device flow turned on. \
+            Open the app's settings on GitHub and tick "Enable Device Flow".
+            """
+        case .unknownClientID:
+            """
+            GitHub does not recognise this OAuth client ID. Check that it \
+            matches the app you registered.
             """
         case .authorizationDenied:
             "You declined the authorization request on GitHub."
