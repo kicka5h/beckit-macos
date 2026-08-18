@@ -19,9 +19,7 @@ struct MarkdownEditor: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
-        guard let textView = scrollView.documentView as? NSTextView else { return scrollView }
-
+        let (scrollView, textView) = Self.makeTextView(theme: theme)
         textView.delegate = context.coordinator
         textView.isRichText = false
         textView.allowsUndo = true
@@ -41,17 +39,43 @@ struct MarkdownEditor: NSViewRepresentable {
         textView.isContinuousSpellCheckingEnabled = true
         textView.isGrammarCheckingEnabled = false
 
-        scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-
         context.coordinator.textView = textView
         context.coordinator.load(text)
         return scrollView
     }
 
+    /// Builds the scrolling text view.
+    ///
+    /// Assembled by hand rather than with `NSTextView.scrollableTextView()`
+    /// because the caret needs `ProseTextView`, and that convenience gives no
+    /// say over the class. Split out from `makeNSView` so it can be built and
+    /// inspected in a test without a SwiftUI `Context`.
+    static func makeTextView(theme: EditorTheme) -> (NSScrollView, ProseTextView) {
+        let textView = ProseTextView(usingTextLayoutManager: true)
+        textView.fallbackFont = theme.bodyFont
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.minSize = .zero
+        textView.maxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude)
+        // The measure owns the container width — see `applyMeasure`.
+        textView.textContainer?.widthTracksTextView = false
+        textView.textContainer?.heightTracksTextView = false
+
+        let scrollView = NSScrollView()
+        scrollView.documentView = textView
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        return (scrollView, textView)
+    }
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? NSTextView else { return }
+        guard let textView = scrollView.documentView as? ProseTextView else { return }
+        textView.fallbackFont = theme.bodyFont
         context.coordinator.theme = theme
         context.coordinator.onEdit = onEdit
         textView.isEditable = isEditable
@@ -135,5 +159,40 @@ struct MarkdownEditor: NSViewRepresentable {
                 width: max(16, (available - width) / 2),
                 height: theme.textInsets.height)
         }
+    }
+}
+
+
+/// An `NSTextView` that draws a caret sized to the type.
+///
+/// NSTextView draws the insertion point the full height of the line fragment,
+/// which is the right answer for a text field and the wrong one for prose with
+/// leading: the caret ends up markedly taller than the letters on either side
+/// of it. This trims it back to the typeface and centres it in the line.
+final class ProseTextView: NSTextView {
+
+    /// Used when the text at the caret carries no font of its own — an empty
+    /// document, or a position between styled runs.
+    var fallbackFont: NSFont = .systemFont(ofSize: NSFont.systemFontSize)
+
+    /// The caret rect for a line fragment, sized to `font` and centred.
+    ///
+    /// Pure, so the arithmetic can be tested without a window. Returns the
+    /// fragment unchanged when the type is already as tall as the line, which
+    /// is the case with no extra leading.
+    static func caretRect(inFragment fragment: NSRect, font: NSFont) -> NSRect {
+        let height = (font.ascender - font.descender).rounded()
+        guard height > 0, height < fragment.height else { return fragment }
+
+        var rect = fragment
+        rect.origin.y += ((fragment.height - height) / 2).rounded()
+        rect.size.height = height
+        return rect
+    }
+
+    override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
+        let font = self.font ?? (typingAttributes[.font] as? NSFont) ?? fallbackFont
+        super.drawInsertionPoint(
+            in: Self.caretRect(inFragment: rect, font: font), color: color, turnedOn: flag)
     }
 }

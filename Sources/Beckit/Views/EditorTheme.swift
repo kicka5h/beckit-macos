@@ -10,7 +10,14 @@ import SwiftUI
 /// than hidden, and nothing reflows when the caret arrives.
 struct EditorTheme: Sendable {
     var bodySize: CGFloat = 14
-    var lineHeightMultiple: CGFloat = 1.5
+    /// Leading, as a multiple of the font's natural line height.
+    ///
+    /// Kept modest because NSTextView draws the caret the full height of the
+    /// line fragment: at 14pt a 1.5 multiple makes a 25.5pt fragment around a
+    /// 16.5pt typeface, and the caret overshoots the letters by half its own
+    /// height top and bottom. `ProseTextView` trims the caret back to the type,
+    /// but tight-enough leading means it barely has to.
+    var lineHeightMultiple: CGFloat = 1.25
     /// Measure, in characters. Prose is unreadable across a 27-inch display, so
     /// the text column stays narrow and centred no matter how wide the window.
     var measure: CGFloat = 68
@@ -26,7 +33,7 @@ struct EditorTheme: Sendable {
 
     /// Space between paragraphs, in proportion to the type. Fixed values look
     /// right at one size and wrong at every other.
-    var paragraphSpacing: CGFloat { (bodySize * 0.6).rounded() }
+    var paragraphSpacing: CGFloat { (bodySize * 0.4).rounded() }
 
     /// Width of one character of body text, averaged across the lowercase
     /// alphabet.
