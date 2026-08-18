@@ -43,13 +43,6 @@ if [ ! -f "$ROOT/App/Assets/Beckit.icns" ] \
 fi
 cp "$ROOT/App/Assets/Beckit.icns" "$APP/Contents/Resources/Beckit.icns"
 
-# Bundled fonts. ATSApplicationFontsPath in Info.plist points here, so macOS
-# registers whatever lands in this directory when the app launches.
-if [ -d "$ROOT/App/Fonts" ] && [ -n "$(ls -A "$ROOT/App/Fonts" 2>/dev/null)" ]; then
-    mkdir -p "$APP/Contents/Resources/Fonts"
-    cp "$ROOT"/App/Fonts/* "$APP/Contents/Resources/Fonts/"
-fi
-
 # A client ID supplied by the environment wins over the empty default, so CI can
 # inject it without the value ever living in the repository.
 if [ -n "${BECKIT_OAUTH_CLIENT_ID:-}" ]; then

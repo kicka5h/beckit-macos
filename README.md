@@ -63,33 +63,22 @@ writing; the writing itself is plain text on the window's own material.
 
 ### Type
 
-Display text — the wordmark and sheet titles — is set in **Handone**, bundled in
-`App/Fonts/` and copied into `Contents/Resources/Fonts`. The
-`ATSApplicationFontsPath` key in Info.plist makes macOS register anything in that
-directory at launch, so the face works on a Mac that has never installed it and
-there is no registration code in the app.
+Display text — the wordmark and sheet titles — uses the system font, tightened
+slightly. On macOS that is the cleanest modern option available and the only one
+that comes with optical sizing, the full weight range, and correct rendering in
+every locale and accessibility setting. Nothing is bundled, so there is no font
+to redistribute or licence.
 
-Scope is deliberately narrow. A display face carries the two or three pieces of
-text that give the app its character; running it through the whole interface
-costs legibility everywhere and stops it reading as special anywhere. Controls,
-sidebars and body text stay on the system font, and prose in the editor stays on
-its own reading face.
+`.displayText(size:)` sets the face and tracks it at `size * -0.018`. Type set
+large needs less space between letters than the same face set small; the system
+font's default spacing is tuned for body copy, and left alone at 44pt a wordmark
+reads loose and unresolved.
 
-`Typography.display(size:)` falls back to the system serif when the bundled font
-is missing or its family name does not match, so a build without the font still
-looks deliberate rather than broken.
-
-Two things worth knowing if you change the face:
-
-- The family name is often not the file name — `handone.thin.otf` calls itself
-  `Handone`. `Scripts/list-bundled-fonts.sh` reports the family, full and
-  PostScript names of everything in `App/Fonts`.
-- Handone sets much smaller than its nominal size: its cap height is roughly half
-  what the system font gives at the same value, so call sites pass optical sizes
-  rather than equivalents. The wordmark is 68 where the system serif was 40.
-
-> A bundled font is redistributed with the app. Check that its licence permits
-> embedding before shipping publicly.
+Scope is deliberately narrow. A display treatment carries the two or three pieces
+of text that give the app its character; applying it across the interface costs
+legibility everywhere and stops it reading as special anywhere. Controls,
+sidebars and body text use the default styles, and prose in the editor has its
+own reading face.
 
 ### The mark
 

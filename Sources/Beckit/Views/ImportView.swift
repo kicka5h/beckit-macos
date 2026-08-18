@@ -30,7 +30,7 @@ struct ImportView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Convert this book")
-                .font(Typography.display(size: 34))
+                .displayText(size: 26)
 
             Text("""
                 \(pending.root.lastPathComponent) uses the old version-folder \

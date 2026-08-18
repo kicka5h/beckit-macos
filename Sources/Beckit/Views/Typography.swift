@@ -1,52 +1,27 @@
-import AppKit
 import SwiftUI
 
-/// The app's display face — the wordmark and sheet titles.
+/// Display styling for the app's wordmark and sheet titles.
 ///
-/// Deliberately narrow in scope. A display face is for the two or three pieces
-/// of text that carry the app's character; running it through the whole
+/// The face is the system font. On macOS that is the cleanest modern option
+/// available and the only one that comes with optical sizing, the full weight
+/// range, and correct rendering in every locale and accessibility setting — and
+/// it needs nothing bundled, so there is no font to redistribute or licence.
+///
+/// Scope is deliberately narrow. A display treatment carries the two or three
+/// pieces of text that give the app its character; applying it across the
 /// interface costs legibility everywhere and stops it reading as special
-/// anywhere. Body text, sidebars and controls stay on the system font, and
-/// prose in the editor stays on its own reading face — see `EditorTheme`.
-enum Typography {
+/// anywhere. Controls, sidebars and body text use the default styles, and prose
+/// in the editor has its own reading face — see `EditorTheme`.
+extension View {
 
-    /// Family name of the bundled display font.
+    /// The app's display treatment at a given size.
     ///
-    /// Fonts placed in `App/Fonts/` are copied into
-    /// `Beckit.app/Contents/Resources/Fonts` and registered by macOS at launch
-    /// through the `ATSApplicationFontsPath` key in Info.plist — so there is no
-    /// registration code here, and the font works on a Mac that has never seen
-    /// it installed.
-    ///
-    /// This is the *family* name, which is often not the file name. Run
-    /// `Scripts/list-bundled-fonts.sh` after adding a font to see what the
-    /// family is actually called.
-    static let displayFamily = "Handone"
-
-    /// Whether the bundled display font actually loaded.
-    ///
-    /// Checked rather than assumed: if the file is missing, misnamed, or the
-    /// family name here does not match the one inside the font, the app should
-    /// keep working and simply look ordinary.
-    static var isDisplayFontAvailable: Bool {
-        NSFontManager.shared.availableFontFamilies.contains(displayFamily)
-    }
-
-    /// The display face at a given size, falling back to the system serif when
-    /// the bundled font is not present.
-    ///
-    /// Handone sets much smaller than its nominal size — its cap height is
-    /// roughly half what the system font gives you at the same value, so a call
-    /// here wants a number well above what the same text would take in the
-    /// system face. Callers pass optical sizes, not equivalents: the wordmark is
-    /// 68 where the system serif was 40.
-    static func display(size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        guard isDisplayFontAvailable else {
-            return .system(size: size, weight: weight, design: .serif)
-        }
-        // `.custom(_:fixedSize:)` opts out of Dynamic Type scaling, which is
-        // wrong for a wordmark that has to sit in a fixed layout; `size:` keeps
-        // it scaling with the user's text size preference.
-        return .custom(displayFamily, size: size)
+    /// Tracking is tightened in proportion to the size. Type set large needs
+    /// less space between letters than the same face set small — the system
+    /// font's default spacing is tuned for body copy, and left alone at 44pt a
+    /// wordmark reads loose and unresolved.
+    func displayText(size: CGFloat, weight: Font.Weight = .semibold) -> some View {
+        font(.system(size: size, weight: weight))
+            .tracking(size * -0.018)
     }
 }

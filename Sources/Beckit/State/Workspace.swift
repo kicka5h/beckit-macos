@@ -293,7 +293,7 @@ final class Workspace {
     /// Loads a past version into the editor without committing anything, so the
     /// writer can read it, take what they want, and save if they choose to.
     func restore(_ revision: Revision) {
-        guard let section = currentSection else { return }
+        guard currentSection != nil else { return }
         guard let contents = try? git.contents(of: revision.commit)
         else {
             syncState = .failed("That version could not be read.")
@@ -305,7 +305,7 @@ final class Workspace {
     }
 
     func contents(of revision: Revision) -> String? {
-        guard let section = currentSection else { return nil }
+        guard currentSection != nil else { return nil }
         return try? git.contents(of: revision.commit)
     }
 
