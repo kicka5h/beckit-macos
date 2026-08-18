@@ -15,7 +15,9 @@ struct RootView: View {
             }
         }
         .task { await library.restoreSession() }
-        .sheet(item: $library.pendingImport) { ImportView(pending: $0) }
+        .sheet(item: $library.pendingImport, onDismiss: library.openConvertedBook) {
+            ImportView(pending: $0)
+        }
         .alert(item: $library.error) { error in
             Alert(title: Text("Something went wrong"), message: Text(error.message))
         }
@@ -77,6 +79,10 @@ struct BookWindow: View {
     // all four running together in a single undifferentiated capsule.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        // Read once. Toolbar content is rebuilt often, and every read of
+        // workspace state from here happens inside SwiftUI's update pass.
+        let hasRemote = workspace.hasRemote
+
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 workspace.saveNow()
@@ -91,8 +97,8 @@ struct BookWindow: View {
             } label: {
                 Label("Sync", systemImage: "arrow.trianglehead.2.clockwise")
             }
-            .disabled(!workspace.hasRemote)
-            .help(workspace.hasRemote
+            .disabled(!hasRemote)
+            .help(hasRemote
                 ? "Pull the latest changes from GitHub"
                 : "This book is not connected to GitHub")
         }

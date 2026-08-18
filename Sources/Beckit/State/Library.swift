@@ -87,6 +87,30 @@ final class Library {
         workspace = nil
     }
 
+    /// The book a just-finished conversion produced, waiting for the import
+    /// sheet to finish dismissing.
+    private var convertedRoot: URL?
+
+    /// Called by the import sheet once the conversion has succeeded. Only
+    /// records the result; opening happens in `openConvertedBook`.
+    func importDidFinish(at root: URL) {
+        convertedRoot = root
+        pendingImport = nil
+    }
+
+    /// Called from the sheet's `onDismiss`, once it has actually gone.
+    ///
+    /// Opening swaps the root view from the welcome screen to the writing
+    /// window, which installs a window toolbar for the first time. Doing that
+    /// in the same update that dismisses the sheet means tearing down one view
+    /// tree and standing up another mid-transition, and SwiftUI's toolbar
+    /// machinery is where that bill comes due.
+    func openConvertedBook() {
+        guard let root = convertedRoot else { return }
+        convertedRoot = nil
+        open(root)
+    }
+
     private func remember(_ root: URL) {
         recentBooks.removeAll { $0 == root }
         recentBooks.insert(root, at: 0)

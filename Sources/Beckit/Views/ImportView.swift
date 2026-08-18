@@ -112,8 +112,10 @@ struct ImportView: View {
                 }.value
 
                 progress = nil
-                dismiss()
-                library.open(root)
+                // Hand the result back and let the sheet dismiss. Opening the
+                // book is deferred to the dismissal completing — see
+                // Library.openConvertedBook.
+                library.importDidFinish(at: root)
             } catch {
                 progress = nil
                 failure = error.localizedDescription

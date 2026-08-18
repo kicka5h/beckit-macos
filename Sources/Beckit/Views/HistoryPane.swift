@@ -25,7 +25,7 @@ struct HistoryPane: View {
         .sheet(item: $previewing) { revision in
             RevisionPreview(
                 revision: revision,
-                contents: workspace.contents(of: revision) ?? "",
+                load: { workspace.contents(of: revision) ?? "" },
                 onRestore: {
                     workspace.restore(revision)
                     previewing = nil
@@ -70,7 +70,10 @@ struct HistoryPane: View {
 /// Read-only look at a past version, with the option to bring it back.
 struct RevisionPreview: View {
     let revision: Workspace.Revision
-    let contents: String
+    /// Reads the version's contents out of git. Deferred rather than passed in:
+    /// evaluating it in the sheet's content builder ran `git show` on the main
+    /// thread every time SwiftUI rebuilt the sheet.
+    let load: () -> String
     let onRestore: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -87,7 +90,7 @@ struct RevisionPreview: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("\(WordCount.count(in: contents).formatted()) words")
+                Text("\(WordCount.count(in: text).formatted()) words")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -108,6 +111,6 @@ struct RevisionPreview: View {
             .padding(14)
         }
         .frame(width: 640, height: 560)
-        .onAppear { text = contents }
+        .task { text = load() }
     }
 }

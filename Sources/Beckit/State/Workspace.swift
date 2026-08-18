@@ -63,6 +63,7 @@ final class Workspace {
         self.planning = PlanningTree.load(in: store.root)
         select(book.sections.first?.id)
         recountBook()
+        refreshRemoteStatus()
     }
 
     // MARK: - Opening a book
@@ -213,20 +214,37 @@ final class Workspace {
     // MARK: - Sync
 
     /// True once the book has somewhere to sync to. A local-only book is a
-    /// perfectly good book, so every sync path checks this and stays quiet
-    /// rather than reporting "no remote" as a failure over and over.
-    var hasRemote: Bool {
-        (try? git.remoteURL()) != nil
+    /// perfectly good book, so the sync controls stay quiet rather than
+    /// reporting "no remote" as a failure over and over.
+    ///
+    /// Stored, not computed. This was a computed property that shelled out to
+    /// `git remote get-url origin`, and the toolbar reads it twice — so every
+    /// toolbar update spawned two subprocesses and blocked the main thread on
+    /// their pipes, from inside SwiftUI's view-graph update. Reading it is now
+    /// free; the answer is fetched once, off the main thread.
+    private(set) var hasRemote = false
+
+    private func refreshRemoteStatus() {
+        Task { [git] in
+            let present = await Task.detached(priority: .utility) {
+                (try? git.remoteURL()) != nil
+            }.value
+            hasRemote = present
+        }
     }
 
     func push() async {
-        guard hasRemote else { return }
         syncState = .syncing("Pushing to GitHub…")
         let credentials = await Credentials.current()
         do {
             try await Task.detached(priority: .utility) { [git] in
                 try git.push(credentials: credentials)
             }.value
+            syncState = .idle
+        } catch GitError.noRemote {
+            // A local-only book. Nothing to report — the backend is the
+            // authority on this, so the answer does not depend on the cached
+            // flag having been fetched yet.
             syncState = .idle
         } catch {
             syncState = .failed(error.localizedDescription)
@@ -235,7 +253,6 @@ final class Workspace {
 
     /// Pulls before the writer starts, so two machines do not diverge silently.
     func pull() async {
-        guard hasRemote else { return }
         syncState = .syncing("Checking GitHub…")
         let credentials = await Credentials.current()
         do {
